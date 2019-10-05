@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
+from queue import Queue
+from threading import Thread
 
 import log
 from ReadingTheDataUtils import get_feature_names, get_sensor_names
@@ -26,6 +28,8 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search
     :return: python Dictionary, {key python str: sensor name as it presented in the article,
                                 value sklearn.linear_model.logistic.LogisticRegression: learned classifier}
     """
+    logger.debug("start single sensor model")
+
     single_sensor_classifiers = dict()
     feature_names = get_feature_names(i_X_fold_train, ['label'])  # In this case we using the data with just our label!
     sensor_names = get_sensor_names(feature_names)
@@ -37,6 +41,8 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search
         single_sensor_data = i_X_fold_train[sensor_name_in_extrasensory_data]
         clf = single_label_logistic_regression_classifier(single_sensor_data, i_y_fold_train, i_c_grid_search)
         single_sensor_classifiers[sensor_name] = clf
+
+    logger.debug("finished single sensor model")
 
     return single_sensor_classifiers
 # endregion Single sensor classifiers
@@ -55,7 +61,10 @@ def get_early_fusion_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search=
     :return: sklearn.linear_model.logistic.LogisticRegression, learned classifier}
     """
     logger.debug("start early fusion model")
+
     clf = single_label_logistic_regression_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search)
+
+    logger.debug("finished early fusion model")
 
     return clf
 # endregion early fusion classifier
@@ -64,13 +73,13 @@ def get_early_fusion_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search=
 # region Classifier
 
 # region Logistic Regression
-def single_label_logistic_regression_classifier(i_fold_X_train, i_fold_y_train, i_c_grid_search):
+def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_search):
     # Split the data to train and validation sets in order to chose best C
     X_train, X_validation, y_train, y_validation = train_test_split(
-        i_fold_X_train,
-        i_fold_y_train,
+        i_X_train,
+        i_y_train,
         test_size=0.33,  # Validation set is one third from the original training set
-        stratify=i_fold_y_train.tolist()  # Here we make sure that the proportion between all label options is maintained
+        stratify=i_y_train.tolist()  # Here we make sure that the proportion between all label options is maintained
     )
 
     # # Test proportion
@@ -151,9 +160,50 @@ def _C_score_grid_search(i_X_train, i_X_test, i_y_train, i_y_test, i_solver, i_m
 # endregion Classifier
 
 
-def get_late_fusion_average_classifier(X_fold_train, y_fold_train):
-    pass
+def learn_all_models_async(standard_X_train, y_fold_train, c_score_grid_search=False):
+    que = Queue()
+    threads_list = list()
+    res = list()
+    t_single_sensor = Thread(
+        target=lambda q, X, y, b: q.put(
+            get_single_sensor_classifier(X, y, i_c_grid_search=b)
+        ),
+        args=(que, standard_X_train, y_fold_train, c_score_grid_search),
+        name="get_single_sensor_classifier",
+        daemon=True
+    )
+    t_early_fusion = Thread(
+        target=lambda q, X, y, b: q.put(
+            get_early_fusion_classifier(X, y, i_c_grid_search=b)
+        ),
+        args=(que, standard_X_train, y_fold_train, c_score_grid_search),
+        name="get_early_fusion_classifier",
+        daemon=True
+    )
+
+    threads_list.append(t_single_sensor)
+    threads_list.append(t_early_fusion)
+
+    # Start all the threads
+    for t in threads_list:
+        t.start()
+
+    # Join all the threads
+    for t in threads_list:
+        logger.debug(f'waiting to: {t.name}')
+        t.join()
+        logger.debug(f'get results from: {t.name}')
+        res.append(que.get())
+
+    single_sensor_result = res[0]
+    early_fusion_results = res[1]
+
+    return single_sensor_result, early_fusion_results
 
 
-def get_late_fusion_learned_classifier(X_fold_train, y_fold_train):
-    pass
+def learn_all_models_sync(standard_X_train, y_fold_train, c_score_grid_search=False):
+    single_sensor_result = get_single_sensor_classifier(standard_X_train, y_fold_train, c_score_grid_search)
+    early_fusion_results = get_early_fusion_classifier(standard_X_train, y_fold_train, c_score_grid_search)
+
+    return single_sensor_result, early_fusion_results
+
