@@ -47,6 +47,7 @@ def get_sensor_names(feature_names: list):
 
 
 def _get_sensor_names_from_features(feature_names):
+    # TODO: consider to uncomment sensors that wasn't used in the article
     feat_sensor_names = dict()
 
     for feature_name in feature_names:
@@ -55,11 +56,13 @@ def _get_sensor_names_from_features(feature_names):
         elif feature_name.startswith('proc_gyro'):
             feat_sensor_names.setdefault('Gyro', list()).append(feature_name)
         elif feature_name.startswith('raw_magnet'):
-            feat_sensor_names.setdefault('Magnet', list()).append(feature_name)
+            # feat_sensor_names.setdefault('Magnet', list()).append(feature_name)
+            pass
         elif feature_name.startswith('watch_acceleration'):
             feat_sensor_names.setdefault('WAcc', list()).append(feature_name)
         elif feature_name.startswith('watch_heading'):
-            feat_sensor_names.setdefault('Compass', list()).append(feature_name)
+            # feat_sensor_names.setdefault('Compass', list()).append(feature_name)
+            pass
         elif feature_name.startswith('location'):
             feat_sensor_names.setdefault('Loc', list()).append(feature_name)
         elif feature_name.startswith('location_quick_features'):
@@ -67,11 +70,13 @@ def _get_sensor_names_from_features(feature_names):
         elif feature_name.startswith('audio_naive'):
             feat_sensor_names.setdefault('Aud', list()).append(feature_name)
         elif feature_name.startswith('audio_properties'):
-            feat_sensor_names.setdefault('AP', list()).append(feature_name)
+            # feat_sensor_names.setdefault('AP', list()).append(feature_name)
+            pass
         elif feature_name.startswith('discrete'):
             feat_sensor_names.setdefault('PS', list()).append(feature_name)
         elif feature_name.startswith('lf_measurements'):
-            feat_sensor_names.setdefault('LF', list()).append(feature_name)
+            # feat_sensor_names.setdefault('LF', list()).append(feature_name)
+            pass
         else:
             raise ValueError("!!! Unsupported feature name: %s" % feature_name)
 

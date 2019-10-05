@@ -12,7 +12,7 @@ logger = log.setup_custom_logger('Classifiers')
 logger.debug('First time initialize logger!')
 
 
-# region Single sensor
+# region Single sensor classifiers
 def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train):
     """
     Learn a single sensor classifier as presented in the article.
@@ -21,7 +21,8 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train):
 
     :param i_X_fold_train: pandas.DataFrame, represent all the sensors data
     :param i_y_fold_train: 1D numpy.array, represent all main activity labels in one single vector
-    :return: python Dictionary, {key: sensor name as it presented in the article, value: learned classifier}
+    :return: python Dictionary, {key python str: sensor name as it presented in the article,
+                                value sklearn.linear_model.logistic.LogisticRegression: learned classifier}
     """
     single_sensor_classifiers = dict()
     feature_names = get_feature_names(i_X_fold_train, ['label'])  # In this case we using the data with just our label!
@@ -36,16 +37,27 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train):
         single_sensor_classifiers[sensor_name] = clf
 
     return single_sensor_classifiers
-# endregion Single sensor
+# endregion Single sensor classifiers
 
 
-# region early fusion classifiers
-def get_early_fusion_classifier(X_fold_train, y_fold_train):
-    pass
-# endregion early fusion classifiers
+# region early fusion classifier
+def get_early_fusion_classifier(i_X_fold_train, i_y_fold_train):
+    """
+    Learn a early fusion sensor classifier as presented in the article.
+    The learning method is as presented in the article with LogisticRegression model
+    and a grid search of C value.
+
+    :param i_X_fold_train: pandas.DataFrame, represent all the sensors data
+    :param i_y_fold_train: 1D numpy.array, represent all main activity labels in one single vector
+    :return: sklearn.linear_model.logistic.LogisticRegression, learned classifier}
+    """
+    clf = single_label_logistic_regression_classifier(i_X_fold_train, i_y_fold_train)
+
+    return clf
+# endregion early fusion classifier
 
 
-# region Linear classifier
+# region Classifier
 
 # region Logistic Regression
 def single_label_logistic_regression_classifier(fold_X_train, fold_y_train):
@@ -68,17 +80,21 @@ def single_label_logistic_regression_classifier(fold_X_train, fold_y_train):
     # Model params
     solver = 'lbfgs'
     max_iter = 1000
+    class_weight = 'balanced'
+    n_jobs = 2
 
     logger.debug("starting a grid search")
 
-    C = _C_score_grid_search(X_train, X_validation, y_train, y_validation, solver, max_iter)
+    C = _C_score_grid_search(X_train, X_validation, y_train, y_validation, solver, max_iter, class_weight, n_jobs)
 
     logger.debug("finished the grid search")
 
     clf_model = LogisticRegression(
         C=C,
         solver=solver,
-        max_iter=max_iter
+        max_iter=max_iter,
+        class_weight=class_weight,
+        n_jobs=n_jobs
     )
     finale_train_features = np.concatenate((X_train, X_validation), axis=0)
     finale_train_label = np.concatenate((y_train, y_validation), axis=0)
@@ -88,7 +104,7 @@ def single_label_logistic_regression_classifier(fold_X_train, fold_y_train):
     return clf_model
 
 
-def _C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter):
+def _C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter, class_weight, n_jobs):
     """
     Search the best C hyper parameter of the logistic regression model
     among all C value options as presented in the article.
@@ -110,7 +126,9 @@ def _C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter):
         clf = LogisticRegression(
             C=C,
             solver=solver,
-            max_iter=max_iter
+            max_iter=max_iter,
+            class_weight=class_weight,
+            n_jobs=n_jobs
         )
 
         clf.fit(X_train, y_train)
@@ -125,7 +143,7 @@ def _C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter):
     return best_C
 # endregion Logistic Regression
 
-# endregion Linear classifier
+# endregion Classifier
 
 
 def get_late_fusion_average_classifier(X_fold_train, y_fold_train):
