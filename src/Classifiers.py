@@ -1,4 +1,5 @@
 import logging
+import log
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -6,6 +7,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
 from ReadingTheDataUtils \
     import get_feature_names, get_label_names, get_sensor_names, get_label_data, get_folds_list
+
+logger = log.setup_custom_logger('Classifiers')
+logger.debug('First time initialize logger!')
 
 
 # region Single sensor
@@ -19,13 +23,14 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train):
     :param i_y_fold_train: 1D numpy.array, represent all main activity labels in one single vector
     :return: python Dictionary, {key: sensor name as it presented in the article, value: learned classifier}
     """
-    print('get_single_sensor_classifier')
-
     single_sensor_classifiers = dict()
     feature_names = get_feature_names(i_X_fold_train, ['label'])  # In this case we using the data with just our label!
     sensor_names = get_sensor_names(feature_names)
 
     for sensor_name, sensor_name_in_extrasensory_data in sensor_names.items():
+        logger.debug("inside the main loop")
+        logger.debug(sensor_name)
+
         single_sensor_data = i_X_fold_train[sensor_name_in_extrasensory_data]
         clf = single_label_logistic_regression_classifier(single_sensor_data, i_y_fold_train)
         single_sensor_classifiers[sensor_name] = clf
@@ -35,16 +40,8 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train):
 
 
 # region early fusion classifiers
-# def early_fusion_classifiers(train):
-#     label_names = get_label_names(train)
-#     feature_names = get_feature_names(train, label_names)
-#     sensor_names_dict = get_sensor_names(feature_names)
-#
-#     for label_name in label_names:
-#         for sensor_name, sensors_name_in_data in sensor_names_dict.items():
-#             print(sensor_name)
-#             print(sensors_name_in_data)
-#         # TODO: add a dictionary of the model
+def get_early_fusion_classifier(X_fold_train, y_fold_train):
+    pass
 # endregion early fusion classifiers
 
 
@@ -60,18 +57,24 @@ def single_label_logistic_regression_classifier(fold_X_train, fold_y_train):
         stratify=fold_y_train.tolist()  # Here we make sure that the proportion between all label options is maintained
     )
 
-    ## Test proportion ##
-    # print("y_train:")
-    # print(y_train.value_counts() / np.array(y_train.tolist()).sum())
-    # print(y_train.shape)
-    # print("y_validation:")
-    # print(y_validation.value_counts() / np.array(y_validation.tolist()).sum())
-    # print(y_validation.shape)
+    # # Test proportion
+    # logger.debug("y_train:")
+    # logger.debug(y_train.value_counts() / np.array(y_train.tolist()).sum())
+    # logger.debug(y_train.shape)
+    # logger.debug("y_validation:")
+    # logger.debug(y_validation.value_counts() / np.array(y_validation.tolist()).sum())
+    # logger.debug(y_validation.shape)
 
     # Model params
     solver = 'lbfgs'
     max_iter = 1000
+
+    logger.debug("starting a grid search")
+
     C = _C_score_grid_search(X_train, X_validation, y_train, y_validation, solver, max_iter)
+
+    logger.debug("finished the grid search")
+
     clf_model = LogisticRegression(
         C=C,
         solver=solver,
@@ -126,15 +129,8 @@ def _C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter):
 
 
 def get_late_fusion_average_classifier(X_fold_train, y_fold_train):
-    print('get_late_fusion_average_classifier')
     pass
 
 
 def get_late_fusion_learned_classifier(X_fold_train, y_fold_train):
-    print('get_late_fusion_learned_classifier')
-    pass
-
-
-def get_early_fusion_classifier(X_fold_train, y_fold_train):
-    print('get_early_fusion_classifier')
     pass

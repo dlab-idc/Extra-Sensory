@@ -6,3 +6,4 @@ def convert_timestamp_to_string_date(timestamp):
         .strftime('%Y-%m-%d %H:%M:%S')
 
     return string_timestamp
+
