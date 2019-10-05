@@ -1,85 +1,77 @@
-import pandas as pd
+import logging
+
 import numpy as np
-from pathlib import Path
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import f1_score
 from ReadingTheDataUtils \
     import get_feature_names, get_label_names, get_sensor_names, get_label_data, get_folds_list
 
 
 # region Single sensor
-def single_sensor_classifiers(train):
-    model_dict = dict()
-    label_names = get_label_names(train)
-    feature_names = get_feature_names(train, label_names)
-    sensor_names_dict = get_sensor_names(feature_names)
+def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train):
+    """
+    Learn a single sensor classifier as presented in the article.
+    The learning method is as presented in the article with LogisticRegression model
+    and a grid search of C value.
 
-    for sensor_name, sensors_name_in_data in sensor_names_dict.items():
-        feature_matrix = train[sensors_name_in_data]
+    :param i_X_fold_train: pandas.DataFrame, represent all the sensors data
+    :param i_y_fold_train: 1D numpy.array, represent all main activity labels in one single vector
+    :return: python Dictionary, {key: sensor name as it presented in the article, value: learned classifier}
+    """
+    print('get_single_sensor_classifier')
 
-        for label_name in label_names:
-            label_series = train[label_name].fillna(0)
-            label_array = np.array(label_series)
+    single_sensor_classifiers = dict()
+    feature_names = get_feature_names(i_X_fold_train, ['label'])  # In this case we using the data with just our label!
+    sensor_names = get_sensor_names(feature_names)
 
-            clf_model = train_one_single_sensor_classifier(feature_matrix, label_array)
+    for sensor_name, sensor_name_in_extrasensory_data in sensor_names.items():
+        single_sensor_data = i_X_fold_train[sensor_name_in_extrasensory_data]
+        clf = single_label_logistic_regression_classifier(single_sensor_data, i_y_fold_train)
+        single_sensor_classifiers[sensor_name] = clf
 
-            model_dict.setdefault(sensor_name, [])\
-                .append\
-                (
-                    {label_name: clf_model}
-                )
-
-    return model_dict
-
-
-def train_one_single_sensor_classifier(feature_matrix, label_array):
-    # scaling the data according to the train
-    scaler = StandardScaler().fit(feature_matrix)
-    standard_X_train = np.nan_to_num(
-        scaler.transform(
-            feature_matrix
-        ), copy=False
-    )
-
-    clf = train_single_label_classifier(standard_X_train, label_array)
-
-    return clf
+    return single_sensor_classifiers
 # endregion Single sensor
 
 
 # region early fusion classifiers
-def early_fusion_classifiers(train):
-    label_names = get_label_names(train)
-    feature_names = get_feature_names(train, label_names)
-    sensor_names_dict = get_sensor_names(feature_names)
-
-    for label_name in label_names:
-        for sensor_name, sensors_name_in_data in sensor_names_dict.items():
-            print(sensor_name)
-            print(sensors_name_in_data)
-
-
-
-        # TODO: add a dictionary of the model
+# def early_fusion_classifiers(train):
+#     label_names = get_label_names(train)
+#     feature_names = get_feature_names(train, label_names)
+#     sensor_names_dict = get_sensor_names(feature_names)
+#
+#     for label_name in label_names:
+#         for sensor_name, sensors_name_in_data in sensor_names_dict.items():
+#             print(sensor_name)
+#             print(sensors_name_in_data)
+#         # TODO: add a dictionary of the model
 # endregion early fusion classifiers
 
 
 # region Linear classifier
-def train_single_label_classifier(fold_X_train, fold_y_train):
-    # Split the data to train and validation in order to chose best C
+
+# region Logistic Regression
+def single_label_logistic_regression_classifier(fold_X_train, fold_y_train):
+    # Split the data to train and validation sets in order to chose best C
     X_train, X_validation, y_train, y_validation = train_test_split(
         fold_X_train,
         fold_y_train,
-        test_size=0.33,
-        stratify=fold_y_train
+        test_size=0.33,  # Validation set is one third from the original training set
+        stratify=fold_y_train.tolist()  # Here we make sure that the proportion between all label options is maintained
     )
+
+    ## Test proportion ##
+    # print("y_train:")
+    # print(y_train.value_counts() / np.array(y_train.tolist()).sum())
+    # print(y_train.shape)
+    # print("y_validation:")
+    # print(y_validation.value_counts() / np.array(y_validation.tolist()).sum())
+    # print(y_validation.shape)
 
     # Model params
     solver = 'lbfgs'
     max_iter = 1000
-    C = C_score_grid_search(X_train, X_validation, y_train, y_validation, solver, max_iter)
+    C = _C_score_grid_search(X_train, X_validation, y_train, y_validation, solver, max_iter)
     clf_model = LogisticRegression(
         C=C,
         solver=solver,
@@ -93,7 +85,19 @@ def train_single_label_classifier(fold_X_train, fold_y_train):
     return clf_model
 
 
-def C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter):
+def _C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter):
+    """
+    Search the best C hyper parameter of the logistic regression model
+    among all C value options as presented in the article.
+
+    :param X_train: training set features
+    :param X_test: testing set features
+    :param y_train: training set labels
+    :param y_test: testing set labels
+    :param solver: Logistic regression solver type
+    :param max_iter: Logistic regression max iteration to perform
+    :return: python float64 which represent the best C hyper parameter of the logistic regression model
+    """
     # Grid search for the best C value
     C_options = [0.001, 0.01, 0.1, 1, 10, 100]
     max_C_score = -np.inf
@@ -116,20 +120,21 @@ def C_score_grid_search(X_train, X_test, y_train, y_test, solver, max_iter):
             best_C = C
 
     return best_C
+# endregion Logistic Regression
+
 # endregion Linear classifier
 
 
-def get_late_fusion_average_classifier(standard_X_train, y_fold_train):
+def get_late_fusion_average_classifier(X_fold_train, y_fold_train):
+    print('get_late_fusion_average_classifier')
     pass
 
 
-def get_late_fusion_learned_classifier(standard_X_train, y_fold_train):
+def get_late_fusion_learned_classifier(X_fold_train, y_fold_train):
+    print('get_late_fusion_learned_classifier')
     pass
 
 
-def get_single_sensor_classifier(standard_X_train, y_fold_train):
-    pass
-
-
-def get_early_fusion_classifier(standard_X_train, y_fold_train):
+def get_early_fusion_classifier(X_fold_train, y_fold_train):
+    print('get_early_fusion_classifier')
     pass
