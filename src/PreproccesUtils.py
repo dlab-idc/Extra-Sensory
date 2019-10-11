@@ -9,7 +9,7 @@ def get_folds_train_and_test(i_data, i_train_fold_list, i_test_fold_list):
 
 
 def _split_to_X_y(i_data):
-    X = i_data.drop(['label', 'label_name'], axis=1)
+    X = i_data.drop(['label', 'label_name', 'timestamp'], axis=1)
     y = i_data['label']
 
     return X, y

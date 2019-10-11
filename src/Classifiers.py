@@ -70,7 +70,31 @@ def get_early_fusion_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search=
 # endregion early fusion classifier
 
 
+# Predictions
+
+# region Late fusion using average probability (LFA)
+def get_LFA_predictions(i_standard_X_test, i_single_sensor_models, i_number_of_labels):
+    feature_names = get_feature_names(i_standard_X_test, ['label'])  # In this case we using the data with just our label!
+    sensor_names = get_sensor_names(feature_names)
+    sum_of_probability_predictions = np.zeros((i_standard_X_test.shape[0], i_number_of_labels))
+
+    for sensor_name in i_single_sensor_models:
+        model = i_single_sensor_models[sensor_name]
+        feature_names = sensor_names[sensor_name]
+        test = i_standard_X_test[feature_names]
+
+        sum_of_probability_predictions += model.predict_proba(test)
+
+    N = len(sensor_names)  # Number of sensors
+    average_arr = sum_of_probability_predictions / N
+    pred = np.argmax(average_arr, axis=1)
+
+    return pred
+# endregion Late fusion using average probability (LFA)
+
+# endregion Predictions
 # region Classifier
+
 
 # region Logistic Regression
 def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_search):
@@ -160,7 +184,7 @@ def _C_score_grid_search(i_X_train, i_X_test, i_y_train, i_y_test, i_solver, i_m
 # endregion Classifier
 
 
-def learn_all_models_async(standard_X_train, y_fold_train, c_score_grid_search=False):
+def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
     que = Queue()
     threads_list = list()
     res = list()
@@ -168,7 +192,7 @@ def learn_all_models_async(standard_X_train, y_fold_train, c_score_grid_search=F
         target=lambda q, X, y, b: q.put(
             get_single_sensor_classifier(X, y, i_c_grid_search=b)
         ),
-        args=(que, standard_X_train, y_fold_train, c_score_grid_search),
+        args=(que, i_standard_X_train, i_y_fold_train, i_c_score_grid_search),
         name="get_single_sensor_classifier",
         daemon=True
     )
@@ -176,13 +200,13 @@ def learn_all_models_async(standard_X_train, y_fold_train, c_score_grid_search=F
         target=lambda q, X, y, b: q.put(
             get_early_fusion_classifier(X, y, i_c_grid_search=b)
         ),
-        args=(que, standard_X_train, y_fold_train, c_score_grid_search),
+        args=(que, i_standard_X_train, i_y_fold_train, i_c_score_grid_search),
         name="get_early_fusion_classifier",
         daemon=True
     )
 
     threads_list.append(t_single_sensor)
-    threads_list.append(t_early_fusion)
+    # threads_list.append(t_early_fusion)  # TODO: uncomment for actual models
 
     # Start all the threads
     for t in threads_list:
@@ -196,14 +220,14 @@ def learn_all_models_async(standard_X_train, y_fold_train, c_score_grid_search=F
         res.append(que.get())
 
     single_sensor_result = res[0]
-    early_fusion_results = res[1]
+    early_fusion_results = [res[1] if len(res) > 1 else ""]
 
     return single_sensor_result, early_fusion_results
 
 
-def learn_all_models_sync(standard_X_train, y_fold_train, c_score_grid_search=False):
-    single_sensor_result = get_single_sensor_classifier(standard_X_train, y_fold_train, c_score_grid_search)
-    early_fusion_results = get_early_fusion_classifier(standard_X_train, y_fold_train, c_score_grid_search)
+def learn_all_models_sync(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
+    single_sensor_result = get_single_sensor_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
+    early_fusion_results = get_early_fusion_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
 
     return single_sensor_result, early_fusion_results
 
