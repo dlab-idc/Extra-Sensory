@@ -142,7 +142,14 @@ def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_s
     return clf_model
 
 
-def _C_score_grid_search(i_X_train, i_X_test, i_y_train, i_y_test, i_solver, i_max_iter, i_class_weight, i_n_jobs):
+def _C_score_grid_search(i_X_train,
+                         i_X_test,
+                         i_y_train,
+                         i_y_test,
+                         i_solver,
+                         i_max_iter,
+                         i_class_weight,
+                         i_n_jobs):
     """
     Search the best C hyper parameter of the logistic regression model
     among all C value options as presented in the article.
