@@ -192,14 +192,15 @@ def _C_score_grid_search(i_X_train,
 
 
 def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
-    que = Queue()
+    single_sensor_que = Queue()
+    early_fusion_que = Queue()
     threads_list = list()
     res = list()
     t_single_sensor = Thread(
         target=lambda q, X, y, b: q.put(
             get_single_sensor_classifier(X, y, i_c_grid_search=b)
         ),
-        args=(que, i_standard_X_train, i_y_fold_train, i_c_score_grid_search),
+        args=(single_sensor_que, i_standard_X_train, i_y_fold_train, i_c_score_grid_search),
         name="get_single_sensor_classifier",
         daemon=True
     )
@@ -207,7 +208,7 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
         target=lambda q, X, y, b: q.put(
             get_early_fusion_classifier(X, y, i_c_grid_search=b)
         ),
-        args=(que, i_standard_X_train, i_y_fold_train, i_c_score_grid_search),
+        args=(early_fusion_que, i_standard_X_train, i_y_fold_train, i_c_score_grid_search),
         name="get_early_fusion_classifier",
         daemon=True
     )
@@ -220,11 +221,10 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
         t.start()
 
     # Join all the threads
-    for t in threads_list:
-        logger.debug(f'waiting to: {t.name}')
-        t.join()
-        logger.debug(f'get results from: {t.name}')
-        res.append(que.get())
+    t_single_sensor.join()
+    res.append(single_sensor_que.get())
+    # t_early_fusion.join()
+    # res.append(early_fusion_que.get())
 
     single_sensor_result = res[0]
     early_fusion_results = [res[1] if len(res) > 1 else ""]
@@ -238,3 +238,5 @@ def learn_all_models_sync(i_standard_X_train, i_y_fold_train, i_c_score_grid_sea
 
     return single_sensor_result, early_fusion_results
 
+def stam():
+    return"hi"
