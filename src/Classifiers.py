@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, confusion_matrix
 from queue import Queue
 from threading import Thread
 
@@ -70,7 +70,7 @@ def get_early_fusion_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search=
 # endregion early fusion classifier
 
 
-# Predictions
+# region Predictions
 
 # region Late fusion using average probability (LFA)
 def get_LFA_predictions(i_standard_X_test, i_single_sensor_models, i_number_of_labels):
@@ -92,7 +92,64 @@ def get_LFA_predictions(i_standard_X_test, i_single_sensor_models, i_number_of_l
     return pred
 # endregion Late fusion using average probability (LFA)
 
+
+# region Late fusion using learned weights (LFL)
+def _LFL_train_test_split(i_standard_X_train, i_standard_X_test, i_single_sensor_models):
+    predictions_train = []
+    predictions_test = []
+    feature_names = get_feature_names(i_standard_X_test, ['label'])  # In this case we using the data with our label!
+    sensor_names = get_sensor_names(feature_names)
+
+    for sensor_name in i_single_sensor_models:
+        model = i_single_sensor_models[sensor_name]
+        feature_names = sensor_names[sensor_name]
+        test = i_standard_X_train[feature_names]
+
+        predictions_train.append(model.predict_proba(test))
+
+    for sensor_name in i_single_sensor_models:
+        model = i_single_sensor_models[sensor_name]
+        feature_names = sensor_names[sensor_name]
+        test = i_standard_X_test[feature_names]
+
+        predictions_test.append(model.predict_proba(test))
+
+    return np.array(predictions_train), np.array(predictions_test)
+
+
+def get_LFL_predictions(i_single_sensor_models, i_standard_X_train, i_standard_X_test, i_y_train,
+                        i_C_grid_search=False):
+    predictions_train, predictions_test = \
+        _LFL_train_test_split(i_standard_X_train, i_standard_X_test, i_single_sensor_models)
+
+    # Training one VS all
+    models = []
+
+    for i in range(7):
+        X_train = predictions_train[:, :, i].T
+        y_train = i_y_train.apply(lambda x: 1 if x == i else 0)
+        clf = single_label_logistic_regression_classifier(X_train, y_train, i_C_grid_search)
+
+        models.append(clf)
+
+    # Predictions one VS all
+    y_pred_lst = []
+
+    for label_idx, model in enumerate(models):
+        X_test = predictions_test[:, :, label_idx].T
+        label_pred = model.predict_proba(X_test)[:, 1]  # 1 indicates the probability to be 1
+
+        y_pred_lst.append(label_pred)
+
+    y_pred_proba = np.array(y_pred_lst)
+    y_pred = np.argmax(y_pred_proba.T, axis=1)
+
+    return y_pred
+# endregion Late fusion using learned weights (LFL)
+
 # endregion Predictions
+
+
 # region Classifier
 
 
@@ -105,14 +162,6 @@ def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_s
         test_size=0.33,  # Validation set is one third from the original training set
         stratify=i_y_train.tolist()  # Here we make sure that the proportion between all label options is maintained
     )
-
-    # # Test proportion
-    # logger.debug("y_train:")
-    # logger.debug(y_train.value_counts() / np.array(y_train.tolist()).sum())
-    # logger.debug(y_train.shape)
-    # logger.debug("y_validation:")
-    # logger.debug(y_validation.value_counts() / np.array(y_validation.tolist()).sum())
-    # logger.debug(y_validation.shape)
 
     # Model params
     solver = 'lbfgs'
@@ -142,14 +191,10 @@ def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_s
     return clf_model
 
 
-def _C_score_grid_search(i_X_train,
-                         i_X_test,
-                         i_y_train,
-                         i_y_test,
-                         i_solver,
-                         i_max_iter,
-                         i_class_weight,
-                         i_n_jobs):
+def _C_score_grid_search(i_X_train, i_X_test,
+                         i_y_train, i_y_test,
+                         i_solver, i_max_iter,
+                         i_class_weight, i_n_jobs):
     """
     Search the best C hyper parameter of the logistic regression model
     among all C value options as presented in the article.
@@ -189,6 +234,81 @@ def _C_score_grid_search(i_X_train,
 # endregion Logistic Regression
 
 # endregion Classifier
+
+
+# region Performance evaluation
+def get_model_stats(y_true, y_pred):
+    """
+    :param y_pred: 1D numpy.array with the prediction of the model
+    :param y_true: 1D numpy.array with the target values (labels)
+    :return:  python tuple containing:
+             TP: true positive
+             FN: false negative
+             TN: true negative
+             FP: false positive
+    """
+    cnf_matrix = confusion_matrix(y_true, y_pred)
+    FP = (cnf_matrix.sum(axis=0) - np.diag(cnf_matrix))
+    FN = (cnf_matrix.sum(axis=1) - np.diag(cnf_matrix))
+    TP = np.diag(cnf_matrix)
+    TN = (cnf_matrix.sum() - (FP + FN + TP))
+
+    FP = FP.sum()
+    FN = FN.sum()
+    TP = TP.sum()
+    TN = TN.sum()
+
+    return TP, TN, FP, FN
+
+
+def get_evaluations_metric_scores(TP, TN, FP, FN):
+    # TODO: fine the right metric to evaluate in multi label class
+    """
+    Compute the performance evaluation of a classifier
+    according to the metrics that were presented in the article
+
+    :param TP: true positive
+    :param FN: false negative
+    :param TN: true negative
+    :param FP: false positive
+    :return: python tuple containing:
+            TPR: true positive rate, also known as sensitivity or recall.
+                    proportion of positive examples that correctly classified as positive
+            TNR: true negative rate, also known as sensitivity.
+                    proportion of negative examples that correctly classified as negative
+            accuracy: proportion of correctly classified examples out of all examples
+            precision: proportion of correctly classified examples out of the positive declared examples
+            BA: balanced accuracy. measure that consider both TPR and TNR
+            F1: the harmonic mean of recall(TPR) and precision
+
+    """
+    TPR = TP / (TP + FN)  # sensitivity
+    TNR = TN / (TN + FP)  # specifisity
+    accuracy = (TP + TN) / (TP + FP + TN + FN)
+    precision = TP / (TP + FP)
+    BA = (TPR + TNR) / 2
+    F1 = (2 * TPR * precision) / (TPR + precision)
+
+    return TPR, TNR, accuracy, precision, BA, F1
+
+
+def get_article_states(y_true, y_pred):
+    TP, TN, FP, FN = get_model_stats(y_true, y_pred)
+    TPR, TNR, accuracy, precision, BA, F1 = get_evaluations_metric_scores(TP, TN, FP, FN)
+
+    return TPR, TNR, accuracy, precision, BA, F1
+
+
+def insert_values_to_evaluations_dict(i_evaluations_dict, i_model_name,
+                                      i_accuracy, i_sensitivity, i_specifisity, i_BA, i_precision, i_F1):
+    i_evaluations_dict.setdefault("classifier", []).append(i_model_name)
+    i_evaluations_dict.setdefault("accuracy", []).append(i_accuracy)
+    i_evaluations_dict.setdefault("sensitivity", []).append(i_sensitivity)
+    i_evaluations_dict.setdefault("specifisity", []).append(i_specifisity)
+    i_evaluations_dict.setdefault("BA", []).append(i_BA)
+    i_evaluations_dict.setdefault("precision", []).append(i_precision)
+    i_evaluations_dict.setdefault("F1", []).append(i_F1)
+# endregion Performance evaluation
 
 
 def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
@@ -238,5 +358,4 @@ def learn_all_models_sync(i_standard_X_train, i_y_fold_train, i_c_score_grid_sea
 
     return single_sensor_result, early_fusion_results
 
-def stam():
-    return"hi"
+
