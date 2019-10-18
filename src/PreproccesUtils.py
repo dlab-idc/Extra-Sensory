@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 
 def get_folds_train_and_test(i_data, i_train_fold_list, i_test_fold_list):
@@ -23,8 +24,6 @@ def split_fold_data_to_features_and_labels(i_train_fold_df, i_test_fold_df):
 
 
 def standard_data_scaling(i_X_fold_train, i_X_fold_test):
-    from sklearn.preprocessing import StandardScaler
-
     scaler = StandardScaler()
 
     scaler.fit(i_X_fold_train)
