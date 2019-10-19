@@ -17,13 +17,33 @@ NUM_OF_LABELS = 7
 
 
 # region Single sensor classifiers
-def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search=True):
+def _get_single_sensor_X_y(i_standard_X_fold_train, i_y_fold_train, i_sensor_name_in_extrasensory_data):
+    X = i_standard_X_fold_train[i_sensor_name_in_extrasensory_data].copy(deep=False)
+    mask = X.isnull().any(1)
+    index_to_remove = X[mask].index
+
+    X.drop(index_to_remove, inplace=True, axis=0)
+    X.fillna(0, inplace=True)
+
+    y = i_y_fold_train.copy(deep=False)
+
+    y.reset_index(drop=True, inplace=True)
+    y.drop(index_to_remove, inplace=True, axis=0)
+
+    # Test
+    if X.shape[0] != y.shape[0]:
+        raise Exception("Problem while drooping NA indices")
+
+    return X, y
+
+
+def get_single_sensor_classifier(i_standard_X_fold_train, i_y_fold_train, i_c_grid_search=True):
     """
     Learn a single sensor classifier as presented in the article.
     The learning method is as presented in the article with LogisticRegression model
     and a grid search of C value.
 
-    :param i_X_fold_train: pandas.DataFrame, represent all the sensors data
+    :param i_standard_X_fold_train: pandas.DataFrame, represent all the sensors data
     :param i_y_fold_train: 1D numpy.array, represent all main activity labels in one single vector
     :param i_c_grid_search: python bool, indicated if to perform grid search Default value True
     :return: python Dictionary, {key python str: sensor name as it presented in the article,
@@ -32,15 +52,16 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search
     LOGGER.debug("start single sensor model")
 
     single_sensor_classifiers = dict()
-    feature_names = get_feature_names(i_X_fold_train, ['label'])  # In this case we using the data with just our label!
+    feature_names = get_feature_names(i_standard_X_fold_train, ['label'])  # In this case we use the data with our label!
     sensor_names = get_sensor_names(feature_names)
 
     for sensor_name, sensor_name_in_extrasensory_data in sensor_names.items():
         LOGGER.debug("inside the main loop")
         LOGGER.debug(sensor_name)
 
-        single_sensor_data = i_X_fold_train[sensor_name_in_extrasensory_data]
-        clf = single_label_logistic_regression_classifier(single_sensor_data, i_y_fold_train, i_c_grid_search)
+        single_sensor_data, y_train = _get_single_sensor_X_y(i_standard_X_fold_train, i_y_fold_train,
+                                                             sensor_name_in_extrasensory_data)
+        clf = single_label_logistic_regression_classifier(single_sensor_data, y_train, i_c_grid_search)
         single_sensor_classifiers[sensor_name] = clf
 
     LOGGER.debug("finished single sensor model")
@@ -50,7 +71,7 @@ def get_single_sensor_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search
 
 
 # region early fusion classifier
-def get_rows_with_all_sensors_data(i_X_fold_train, i_y_fold_train):
+def _get_rows_with_all_sensors_data(i_X_fold_train, i_y_fold_train):
     # Get rows with all sensors data
     X_train = i_X_fold_train.copy()
     y_train = i_y_fold_train.reset_index(drop=True, inplace=False)
@@ -79,7 +100,7 @@ def get_early_fusion_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search=
     """
     LOGGER.debug("start early fusion model")
 
-    X_train, y_train = get_rows_with_all_sensors_data(i_X_fold_train, i_y_fold_train)
+    X_train, y_train = _get_rows_with_all_sensors_data(i_X_fold_train, i_y_fold_train)
     clf = single_label_logistic_regression_classifier(X_train, y_train, i_c_grid_search)
 
     LOGGER.debug("finished early fusion model")
@@ -172,15 +193,19 @@ def get_LFL_predictions(i_single_sensor_models, i_standard_X_train, i_standard_X
 
 
 # region Logistic Regression
-def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_search):
+def single_label_logistic_regression_classifier(i_X_train, i_y_train,
+                                                i_c_grid_search, is_async_grid_search=True):
     # Split the data to train and validation sets in order to chose best C
+    stratify = i_y_train.tolist()
+    test_size = 0.33
     X_train, X_validation, y_train, y_validation = train_test_split(
         i_X_train,
         i_y_train,
-        test_size=0.33,  # Validation set is one third from the original training set
-        stratify=i_y_train.tolist()  # Here we make sure that the proportion between all label options is maintained
+        test_size=test_size,  # Validation set is one third from the original training set
+        stratify=stratify  # Here we make sure that the proportion between all label options is maintained
     )
-
+    finale_train_features = np.concatenate((X_train, X_validation), axis=0)
+    finale_train_label = np.concatenate((y_train, y_validation), axis=0)
     # Model params
     solver = 'lbfgs'
     max_iter = 1000
@@ -188,8 +213,12 @@ def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_s
     n_jobs = -1
 
     if i_c_grid_search:
-        LOGGER.debug("starting a grid search")
-        C = _C_score_grid_search(X_train, X_validation, y_train, y_validation, solver, max_iter, class_weight, n_jobs)
+        if is_async_grid_search:
+            LOGGER.debug("starting async grid search")
+            C = _async_C_score_grid_search(finale_train_features, finale_train_label, solver, max_iter, class_weight)
+        else:
+            LOGGER.debug("starting sync grid search")
+            C = _C_score_grid_search(X_train, X_validation, y_train, y_validation, solver, max_iter, class_weight, n_jobs)
         LOGGER.debug("finished the grid search")
     else:
         C = 1
@@ -201,8 +230,6 @@ def single_label_logistic_regression_classifier(i_X_train, i_y_train, i_c_grid_s
         class_weight=class_weight,
         n_jobs=n_jobs
     )
-    finale_train_features = np.concatenate((X_train, X_validation), axis=0)
-    finale_train_label = np.concatenate((y_train, y_validation), axis=0)
 
     clf_model.fit(finale_train_features, finale_train_label)
 
@@ -249,6 +276,30 @@ def _C_score_grid_search(i_X_train, i_X_test,
             best_C = C
 
     return best_C
+
+
+def _async_C_score_grid_search(i_X_train, i_y_train,
+                               i_solver, i_max_iter,
+                               i_class_weight):
+    from sklearn.model_selection import GridSearchCV
+    C_options = [0.001, 0.01, 0.1, 1, 10, 100]
+    param_grid = [{'C': C_options,
+                   'solver': [i_solver],
+                   'max_iter': [i_max_iter],
+                   'class_weight': [i_class_weight]}]
+    clf = LogisticRegression()
+
+    best_clf = GridSearchCV(estimator=clf,
+                            param_grid=param_grid,
+                            cv=None,
+                            refit=False,
+                            scoring='f1_micro',
+                            n_jobs=-1
+                            )
+
+    best_clf.fit(i_X_train, i_y_train)
+
+    return best_clf.best_params_['C']
 # endregion Logistic Regression
 
 # endregion Classifier
@@ -329,7 +380,7 @@ def insert_values_to_evaluations_dict(i_evaluations_dict, i_model_name,
 # endregion Performance evaluation
 
 
-def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
+def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=False):
     single_sensor_que = Queue()
     early_fusion_que = Queue()
     threads_list = list()
@@ -352,7 +403,7 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
     )
 
     threads_list.append(t_single_sensor)
-    threads_list.append(t_early_fusion)
+    # threads_list.append(t_early_fusion)
 
     # Start all the threads
     for t in threads_list:
@@ -361,8 +412,8 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
     # Join all the threads
     t_single_sensor.join()
     res.append(single_sensor_que.get())
-    t_early_fusion.join()
-    res.append(early_fusion_que.get())
+    # t_early_fusion.join()
+    # res.append(early_fusion_que.get())
 
     single_sensor_result = res[0]
     early_fusion_results = [res[1] if len(res) > 1 else ""]
@@ -371,8 +422,9 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
 
 
 def learn_all_models_sync(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
+    early_fusion_results=None
     single_sensor_result = get_single_sensor_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
-    early_fusion_results = get_early_fusion_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
+    # early_fusion_results = get_early_fusion_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
 
     return single_sensor_result, early_fusion_results
 
