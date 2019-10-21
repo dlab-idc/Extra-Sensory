@@ -322,10 +322,10 @@ def get_model_stats(y_true, y_pred):
     TP = np.diag(cnf_matrix)
     TN = (cnf_matrix.sum() - (FP + FN + TP))
 
-    FP = FP.sum()
-    FN = FN.sum()
-    TP = TP.sum()
-    TN = TN.sum()
+    # FP = FP.sum()
+    # FN = FN.sum()
+    # TP = TP.sum()
+    # TN = TN.sum()
 
     return TP, TN, FP, FN
 
