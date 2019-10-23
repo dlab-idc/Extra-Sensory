@@ -73,7 +73,7 @@ def get_single_sensor_classifier(i_standard_X_fold_train, i_y_fold_train, i_c_gr
 # region early fusion classifier
 def _get_rows_with_all_sensors_data(i_X_fold_train, i_y_fold_train):
     # Get rows with all sensors data
-    X_train = i_X_fold_train.copy()
+    X_train = i_X_fold_train.copy(deep=False)
     y_train = i_y_fold_train.reset_index(drop=True, inplace=False)
     feature_names = get_feature_names(i_X_fold_train, ['label'])
     sensor_names = get_sensor_names(feature_names)
@@ -99,8 +99,18 @@ def get_early_fusion_classifier(i_X_fold_train, i_y_fold_train, i_c_grid_search=
     :return: sklearn.linear_model.logistic.LogisticRegression, learned classifier}
     """
     LOGGER.debug("start early fusion model")
+    LOGGER.debug(f"before removing nulls:")
+    LOGGER.debug(f"X_train.shape = {i_X_fold_train.shape}")
+    LOGGER.debug(f"y_train.shape = {i_y_fold_train.shape}")
 
     X_train, y_train = _get_rows_with_all_sensors_data(i_X_fold_train, i_y_fold_train)
+
+    X_train.fillna(0, inplace=True)
+
+    LOGGER.debug(f"after removing nulls:")
+    LOGGER.debug(f"X_train.shape = {X_train.shape}")
+    LOGGER.debug(f"y_train.shape = {y_train.shape}")
+
     clf = single_label_logistic_regression_classifier(X_train, y_train, i_c_grid_search)
 
     LOGGER.debug("finished early fusion model")
@@ -403,7 +413,7 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
     )
 
     threads_list.append(t_single_sensor)
-    # threads_list.append(t_early_fusion)
+    threads_list.append(t_early_fusion)
 
     # Start all the threads
     for t in threads_list:
@@ -412,8 +422,8 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
     # Join all the threads
     t_single_sensor.join()
     res.append(single_sensor_que.get())
-    # t_early_fusion.join()
-    # res.append(early_fusion_que.get())
+    t_early_fusion.join()
+    res.append(early_fusion_que.get())
 
     single_sensor_result = res[0]
     early_fusion_results = [res[1] if len(res) > 1 else ""]
@@ -422,9 +432,10 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
 
 
 def learn_all_models_sync(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
-    early_fusion_results=None
-    single_sensor_result = get_single_sensor_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
-    # early_fusion_results = get_early_fusion_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
+    early_fusion_results = None
+    single_sensor_result = None
+    # single_sensor_result = get_single_sensor_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
+    early_fusion_results = get_early_fusion_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
 
     return single_sensor_result, early_fusion_results
 
