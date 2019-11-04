@@ -432,9 +432,7 @@ def learn_all_models_async(i_standard_X_train, i_y_fold_train, i_c_score_grid_se
 
 
 def learn_all_models_sync(i_standard_X_train, i_y_fold_train, i_c_score_grid_search=True):
-    early_fusion_results = None
-    single_sensor_result = None
-    # single_sensor_result = get_single_sensor_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
+    single_sensor_result = get_single_sensor_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
     early_fusion_results = get_early_fusion_classifier(i_standard_X_train, i_y_fold_train, i_c_score_grid_search)
 
     return single_sensor_result, early_fusion_results
