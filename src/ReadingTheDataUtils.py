@@ -14,7 +14,9 @@ def get_feature_names(df: pd.DataFrame, label_names):
             lambda x: x not in label_names
             and x != 'label_source'
             and x != 'timestamp'
-            and x != 'label_name', df.columns
+            and x != 'label_name'
+            and not x.startswith('label'),
+            df.columns
         )
     )
 
