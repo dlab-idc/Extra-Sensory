@@ -21,6 +21,7 @@ class ClassifierMaker:
         self.model_name = None
 
     def create_models(self, model_constructor, model_params):
+        sklearn_model = model_params.pop('model')
         for i in range(self.fold_number):
             self.logger.info(f"Training {self.model_name} with fold_{i}")
             train_fold = self.fold_file_format.format("train", i)
@@ -28,11 +29,11 @@ class ClassifierMaker:
             self.logger.info(f"Reading fold_{i}")
             train_df = pd.read_csv(train_fold, index_col="uuid", header=0)
             # test_df = pd.read_csv(test_fold, index_col="uuid", header=0)
-            self.create_model(train_df, i, model_constructor, model_params)
+            self.create_model(train_df, i, model_constructor, model_params, sklearn_model)
 
-    def create_model(self, train, model_number, model_constructor, model_params):
+    def create_model(self, train, model_number, model_constructor, model_params, sklearn_model):
         X, y = self.get_X_y(train)
-        model = model_constructor(**model_params)
+        model = model_constructor(sklearn_model, model_params)
         self.logger.info(f"Training {self.model_name}")
         model.fit(X, y)
         self.save_model(model, f'{self.model_name}_{model_number}')

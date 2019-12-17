@@ -7,7 +7,7 @@ from preprocessing.PreProcessing import PreProcess
 from ExtraSensoryModels.ClasifaierMaker import ClassifierMaker
 from sklearn.linear_model import LogisticRegression
 
-LOG_PATH = r"C:\Users\itama\Desktop\courses\Project\Extra-Sensory-Yarden\src\PyProject\log\classifaier.log"
+LOG_PATH = r".\log\classifier.log"
 
 
 def get_arguments():

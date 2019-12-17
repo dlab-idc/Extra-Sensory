@@ -4,6 +4,8 @@ from utils.GeneralUtils import *
 from preprocessing.PreProcessing import PreProcess
 from ExtraSensoryModels.ClasifaierMaker import ClassifierMaker
 from ExtraSensoryModels.Models import early_fusion, late_fusion_averaging, late_fusion_learning, single_sensor
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 
 
 class ExtraSensory:
@@ -22,14 +24,16 @@ class ExtraSensory:
             pass
         if arguments.train:
             for name in self.names:
-                model_constructor = self.get_model(name)
+                model_constructor = self.get_extra_sensory_model(name)
                 self.classifier_maker.model_name = name
-                self.classifier_maker.create_models(model_constructor, {'C': 1, 'max_iter': 1})
+                params = self.params[name]
+                params['model'] = self.get_sklearn_model(params['model'])
+                self.classifier_maker.create_models(model_constructor, params)
         if arguments.eval:
             pass
 
     @staticmethod
-    def get_model(name):
+    def get_extra_sensory_model(name):
         model = None
         if name in 'early_fusion':
             model = early_fusion.EarlyFusion
@@ -39,4 +43,13 @@ class ExtraSensory:
             model = late_fusion_learning.LateFusionLearning
         elif name in 'single_sensor':
             model = single_sensor.SingleSensor
+        return model
+
+    @staticmethod
+    def get_sklearn_model(name):
+        model = None
+        if name in 'logistic regression':
+            model = LogisticRegression
+        elif name in 'random forest':
+            model = RandomForestClassifier
         return model
