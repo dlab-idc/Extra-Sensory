@@ -1,11 +1,7 @@
 import argparse
 
 from utils.GeneralUtils import *
-from ExtraSensoryModels.Models import early_fusion, late_fusion_averaging, late_fusion_learning, single_sensor
 from extra_sensory import ExtraSensory
-from preprocessing.PreProcessing import PreProcess
-from ExtraSensoryModels.ClasifaierMaker import ClassifierMaker
-from sklearn.linear_model import LogisticRegression
 
 LOG_PATH = r".\log\classifier.log"
 
@@ -16,7 +12,9 @@ def get_arguments():
     parser.add_argument('-p', '--preprocess', type=bool, help='flag for preprocess the data', default=False)
     parser.add_argument('-t', '--train', type=bool, help='flag for training models', default=True)
     parser.add_argument('-e', '--eval', type=bool, help='flag for evaluate and test models', default=False)
-    parser.add_argument('-l', '--learn', type=bool, help='flag for learning parameters for the a model', default=False)
+    parser.add_argument('-l', '--learn_params', type=bool, help='flag for learning parameters for the a model', default=True)
+    parser.add_argument('-e', '--estimator', type=str, help='the name of the sklearn estimator', default='early_fusion')
+    parser.add_argument('-m', '--model', type=str, help='the name of the article model', default='logistic_regression')
     args = parser.parse_args()
     return args
 

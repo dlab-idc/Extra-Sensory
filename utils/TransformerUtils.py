@@ -44,7 +44,7 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
 
     def set_transformed_data_indices(self, X_category, X_numeric):
         """
-        Set the indeces of the categorial and numeric data 
+        Set the indeces of the categorical and numeric data
         :param X_category:
         :param X_numeric:
         :return:
@@ -53,10 +53,16 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
         self.num_cols_indices_ = np.arange(X_category.shape[1], X_numeric.shape[1])
 
     def validate_input(self, column_dtype, transformer):
+        """
+        validate the transformer is an sklearn transformer and the column d-type is ColumnTypeEnum
+        """
         assert isinstance(transformer, TransformerMixin), f"{transformer} is not an instance of TransformerMixin"
         assert isinstance(column_dtype, ColumnTypeEnum), f"{column_dtype} is not an instance of ColumnTypeEnum"
 
     def transform(self, X: pd.DataFrame):
+        """
+        Transform the given data
+        """
         if not self.is_fitted:
             raise Exception("you must call fit first!")
 
@@ -80,6 +86,13 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
         return X_transformed
 
     def fit_transform(self, X: pd.DataFrame, y=None, **fit_params):
+        """
+        Main function, fit the transformers
+        :param X: data-frame
+        :param y: None (require by sklearn api)
+        :param fit_params: (require by sklearn api)
+        :return: numpy array, the transformed data according to the transformer
+        """
         self.fit(X)
         X_transformed = self.transform(X)
 
@@ -108,19 +121,9 @@ def get_single_pre_pipe():
     return pipe
 
 
-def split_cat_num_cols(X: pd.DataFrame):
-    cat_cols = X.select_dtypes(include=["category"]).columns
-    cat_colds_indices = [X.columns.get_loc(c) for c in cat_cols if c in X]
-    num_cols = X.select_dtypes(exclude=["category"]).columns
-    num_cols_indices = [X.columns.get_loc(c) for c in num_cols if c in X]
-
-    return cat_colds_indices, num_cols_indices
-
-
 def get_X_y(train):
     y = np.array(train['label'])
     train.drop(['label'], axis=1, inplace=True)
-    category_indexes, continues_indexes = split_cat_num_cols(train)
-    pipe = get_single_pre_pipe(category_indexes, continues_indexes)
+    pipe = get_single_pre_pipe()
     X = pipe.fit_transform(train)
     return X, y

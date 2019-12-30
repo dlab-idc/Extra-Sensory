@@ -1,6 +1,6 @@
 import logging
-import sys
 import glob
+import json
 import os
 
 from datetime import datetime
@@ -53,7 +53,7 @@ class ConfigManager:
             for section in config.sections():
                 config_dict[section] = {}
                 for key, val in config.items(section):
-                    config_dict[section][key] = val
+                    config_dict[section][key] = json.loads(val)
             return config_dict
 
     instance = None

@@ -1,8 +1,7 @@
-import json
-
 from utils.GeneralUtils import *
 from preprocessing.PreProcessing import PreProcess
-from ExtraSensoryModels.ClasifaierMaker import ClassifierMaker
+from ExtraSensoryModels.HyperParameterLearner import HyperParameterLearner
+from ExtraSensoryModels.ClasifaierMaker import ModelTrainer
 from ExtraSensoryModels.Models import early_fusion, late_fusion_averaging, late_fusion_learning, single_sensor
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -11,38 +10,42 @@ from sklearn.ensemble import RandomForestClassifier
 class ExtraSensory:
     def __init__(self):
         self.config = ConfigManager.get_config('General')
-        self.names = self.config['models']['names'].split(',')
+        self.names = self.config['models']['names']
         self.params = json.loads(self.config['models']['params'])
         self.learning_params = json.loads(self.config['models']['learning_params'])
+
         self.preprocess = PreProcess()
-        self.classifier_maker = ClassifierMaker()
+        self.classifier_maker = ModelTrainer()
 
     def run(self, arguments):
         if arguments.preprocess:
             self.preprocess.create_data_set()
-        if arguments.learn:
-            pass
         if arguments.train:
             for name in self.names:
-                model_constructor = self.get_extra_sensory_model(name)
-                self.classifier_maker.model_name = name
+                #create empty model
+                model = self.get_extra_sensory_model(name)
                 params = self.params[name]
-                params['model'] = self.get_sklearn_model(params['model'])
-                self.classifier_maker.create_models(model_constructor, params)
+                params['estimator'] = self.get_sklearn_model(params['estimator'])
+                if arguments.learn_params:
+                    pass
+                model.set_params(**params)
+                self.classifier_maker.model_name = name
+                self.classifier_maker.train_models(model)
         if arguments.eval:
             pass
 
     @staticmethod
     def get_extra_sensory_model(name):
+        # TODO : change to return extra sensory model and not callable function
         model = None
         if name in 'early_fusion':
-            model = early_fusion.EarlyFusion
+            model = early_fusion.EarlyFusion()
         elif name in 'late_fusion_averaging':
-            model = late_fusion_averaging.LateFusionAveraging
+            model = late_fusion_averaging.LateFusionAveraging()
         elif name in 'late_fusion_learning':
-            model = late_fusion_learning.LateFusionLearning
+            model = late_fusion_learning.LateFusionLearning()
         elif name in 'single_sensor':
-            model = single_sensor.SingleSensor
+            model = single_sensor.SingleSensor()
         return model
 
     @staticmethod

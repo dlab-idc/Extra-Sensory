@@ -297,7 +297,6 @@ def _async_C_score_grid_search(i_X_train, i_y_train,
                                i_solver, i_max_iter,
                                i_class_weight):
     from sklearn.model_selection import GridSearchCV
-    # TODO: make configuration
     C_options = [0.001, 0.01, 0.1, 1, 10, 100]
     param_grid = [{'C': C_options,
                    'solver': [i_solver],
