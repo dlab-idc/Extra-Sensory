@@ -63,7 +63,7 @@ def _single_label_classifier(i_ensamble_model, i_X_train, i_y_train):
                                                  i_X_train, i_y_train)
         clf.set_params(**best_params)
 
-    clf.fit(finale_train_features, finale_train_label)
+    clf.fit(finale_train_features, finale_train_label, )
 
     return clf.clf
 
