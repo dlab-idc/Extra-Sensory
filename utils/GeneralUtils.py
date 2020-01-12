@@ -5,6 +5,7 @@ import os
 
 from datetime import datetime
 from configparser import ConfigParser
+from json import JSONDecodeError
 
 
 def setup_custom_logger(log_file, name=None):
@@ -38,11 +39,11 @@ class ConfigManager:
                 config_parser = ConfigParser()
                 file_name = os.path.basename(file).split('.')[0]
                 config_parser.read(file)
-                config[file_name] = self.config_to_dict(config_parser)
+                config[file_name] = self.config_to_dict(config_parser, file_name)
             return config
 
         @staticmethod
-        def config_to_dict(config):
+        def config_to_dict(config, file_name):
             """
             Converts a ConfigParser object into a dictionary.
 
@@ -53,7 +54,10 @@ class ConfigManager:
             for section in config.sections():
                 config_dict[section] = {}
                 for key, val in config.items(section):
-                    config_dict[section][key] = json.loads(val)
+                    try:
+                        config_dict[section][key] = json.loads(val)
+                    except JSONDecodeError:
+                        print(section, val, file_name)
             return config_dict
 
     instance = None

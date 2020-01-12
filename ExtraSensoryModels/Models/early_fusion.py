@@ -1,19 +1,19 @@
 from ExtraSensoryModels.Interfaces.ExtraSensoryAbstractModel import ExtraSensoryAbstractModel
+from sklearn.base import BaseEstimator
 
 
 class EarlyFusion(ExtraSensoryAbstractModel):
-    def __init__(self, constructor, model_params: dict = None):
+    def __init__(self, estimator: BaseEstimator, model_params: dict = None):
         """
 
-        :param constructor: sklearn estimator constructor
+        :param estimator: sklearn estimator constructor
         :param model_params: sklearn estimator params
         """
-        self.constrictor = constructor
+        self.estimator = estimator
         self.model_params = model_params
 
     def fit(self, X, y):
-        # TODO : add pre-pipe
-        self.model_ = self.constrictor(**self.model_params)
+        self.model_ = self.estimator.set_params(**self.model_params)
         self.model_.fit(X, y)
         return self
 

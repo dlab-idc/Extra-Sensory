@@ -7,14 +7,17 @@ from ExtraSensoryModels.Interfaces.ExtraSensoryAbstractModel import ExtraSensory
 from utils.TransformerUtils import *
 from logging import getLogger
 from utils.GeneralUtils import *
+from datetime import datetime
 
 Model = List[ExtraSensoryAbstractModel]
 
 
-class ClasifaierTrainer:
+class ClassifierTrainer:
     def __init__(self):
         self.config = ConfigManager.get_config('ClassifierTrainer')
-        self.directories = self.config['directories']
+        general_config = ConfigManager.get_config('General')
+        self.directories_dict = general_config['directories']
+        self.format_dict = general_config['formats']
         self.logger = getLogger('classifier')
         self.model_name = None
 
@@ -28,17 +31,18 @@ class ClasifaierTrainer:
     #         # test_df = pd.read_csv(test_fold, index_col="uuid", header=0)
     #         self.train_model(train_df, i, model)
 
-    def train_model(self, train, model_number, model: ExtraSensoryAbstractModel):
+    def train_model(self, train, model: ExtraSensoryAbstractModel):
         X, y = get_X_y(train)
         self.logger.info(f"Training {self.model_name}")
         model.fit(X, y)
-        self.save_model(model, f'{self.model_name}_{model_number}')
+        self.save_model(model)
 
     def load_model(self):
         pass
 
-    def save_model(self, model, model_name):
-        file_name = self.directories['model'].format(model_name)
+    def save_model(self, model,):
+        file_name = self.format_dict['model_file'].format(self.model_name, datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))
         self.logger.info(f"Saving {self.model_name} in {file_name}")
-        with open(file_name, 'wb') as outfile:
+        file_path = os.path.join(self.directories_dict['models'], file_name)
+        with open(file_path, 'wb') as outfile:
             pickle.dump(model, outfile)

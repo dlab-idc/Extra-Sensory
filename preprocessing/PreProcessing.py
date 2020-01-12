@@ -15,24 +15,38 @@ class PreProcess:
     def __init__(self, ):
         self.data = None
         self.config = ConfigManager.get_config('PreProcessing')
-        self.directories_dict = self.config['directories']
-        self.activity_labels = self.config['labels']['main_activity'].split(',')
+        general_config = ConfigManager.get_config('General')
+        self.directories_dict = general_config['directories']
+        self.format_dict = general_config['formats']
+        self.activity_labels = self.config['labels']['main_activity']
         self.index_to_label_dict = self.create_mapping_dict()
-        self.fold_list = self.get_folds_list(self.directories_dict['folds'])
+        self.is_fold = general_config['folds']['is_fold']
+        self.fold_number = general_config['folds']['fold_number']
+        self.fold_list = self.get_folds_list()
         self.logger = getLogger('classifier')
 
     def create_data_set(self):
         self.logger.info("Creating merged data")
         self.create_merge_data()
+        if self.is_fold:
+            self.create_data_by_folds()
+        else:
+            self.create_data()
+
+    def create_data_by_folds(self):
         for fold_number, data in enumerate(self.fold_list):
             self.logger.info(f"Creating fold data number {fold_number}")
             train_fold, test_fold = data
             train_fd = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
             test_fd = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
             self.logger.info(f"Saving train fold number {fold_number}")
-            train_fd.to_csv(self.directories_dict['train_fold'].format(fold_number))
+            train_path = os.path.join(self.directories_dict['fold'],
+                                      self.format_dict['fold_file'].format('train', fold_number))
+            train_fd.to_csv(train_path)
             self.logger.info(f"Saving test fold number {fold_number}")
-            test_fd.to_csv(self.directories_dict['test_fold'].format(fold_number))
+            test_path = os.path.join(self.directories_dict['fold'],
+                                     self.format_dict['fold_file'].format('test', fold_number))
+            test_fd.to_csv(test_path)
 
     def create_merge_data(self):
         """
@@ -139,30 +153,54 @@ class PreProcess:
             df_list.append(single_uuid_df)
         return df_list
 
-    @staticmethod
-    def get_folds_list(fold_path):
+    def get_folds_list(self, ):
+        """
+        Iterates over all the lists of all files that has the division of train test data by UUID
+        :return: list of tuples (test UUIDs list, train UUIDs list)
+        """
         folds_list = []
-        for fold_number in range(5):
-            train_fold = PreProcess.get_single_fold_data('train', fold_number, fold_path)
-            test_fold = PreProcess.get_single_fold_data('test', fold_number, fold_path)
+        for fold_number in range(self.fold_number):
+            train_fold = self.get_single_fold_data('train', fold_number)
+            test_fold = self.get_single_fold_data('test', fold_number)
             folds_list.append((train_fold, test_fold))
         return folds_list
 
-    @staticmethod
-    def get_single_fold_data(fold_type, fold_number, fold_path):
-        uuids_fold_list = []
-        fold_sources = ['android', 'iphone']
-
-        for fold_source in fold_sources:
-            file_name = f"fold_{fold_number}_{fold_type}_{fold_source}_uuids.txt"
-            file_path = os.path.join(fold_path, file_name)
-            with open(file_path, 'r') as fis:
-                for line in fis:
-                    if line:
-                        uuid = line.strip()
-                        uuids_fold_list.append(uuid)
+    def get_single_fold_data(self, fold_type, fold_number):
+        if self.is_fold:
+            uuids_fold_list = self.get_fold_data(fold_number, fold_type)
+        else:
+            file_name = f"{fold_type}.txt"
+            uuids_fold_list = self.read_data(os.path.join(self.directories_dict['cv_5_folds'], file_name))
         return uuids_fold_list
 
+    def get_fold_data(self, fold_number, fold_type):
+        uuids_fold_list = []
+        fold_sources = ['android', 'iphone']
+        for fold_source in fold_sources:
+            file_name = f"fold_{fold_number}_{fold_type}_{fold_source}_uuids.txt"
+            file_path = os.path.join(self.directories_dict['cv_5_folds'], file_name)
+            uuids_fold_list = self.read_data(file_path)
+        return uuids_fold_list
+
+    @staticmethod
+    def read_data(file_path):
+        uuids_fold_list = []
+        with open(file_path, 'r') as fis:
+            for line in fis:
+                if line:
+                    uuid = line.strip()
+                    uuids_fold_list.append(uuid)
+        return uuids_fold_list
+
+    def create_data(self):
+        self.logger.info(f"Creating data set")
+        train_fold, test_fold = self.fold_list[0]
+        train_fd = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
+        test_fd = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
+        self.logger.info(f"Saving train data")
+        train_fd.to_csv(os.path.join(self.directories_dict['fold'], 'train.csv'))
+        self.logger.info(f"Saving test data")
+        test_fd.to_csv(os.path.join(self.directories_dict['fold'], 'test.csv'))
 
 # if __name__ == '__main__':
 #     config = ConfigParser()

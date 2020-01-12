@@ -2,6 +2,15 @@ from glob import glob
 import pandas as pd
 
 
+
+
+
+
+
+
+
+
+
 # def get_label_names(df: pd.DataFrame):
 #     label_names = list(filter(lambda x: x.startswith('label:'), df.columns))
 #
@@ -43,78 +52,78 @@ import pandas as pd
 #     return data
 
 
-def get_sensor_names(feature_names: list):
-    sensors_mapping = _get_sensor_names_from_features(feature_names)
-
-    return sensors_mapping
-
-
-def _get_sensor_names_from_features(feature_names):
-    # TODO: consider to uncomment sensors that wasn't used in the article
-    feat_sensor_names = dict()
-
-    for feature_name in feature_names:
-        if feature_name.startswith('raw_acc'):
-            feat_sensor_names.setdefault('Acc', list()).append(feature_name)
-        elif feature_name.startswith('proc_gyro'):
-            feat_sensor_names.setdefault('Gyro', list()).append(feature_name)
-        elif feature_name.startswith('raw_magnet'):
-            # feat_sensor_names.setdefault('Magnet', list()).append(feature_name)
-            pass
-        elif feature_name.startswith('watch_acceleration'):
-            feat_sensor_names.setdefault('WAcc', list()).append(feature_name)
-        elif feature_name.startswith('watch_heading'):
-            # feat_sensor_names.setdefault('Compass', list()).append(feature_name)
-            pass
-        elif feature_name.startswith('location'):
-            feat_sensor_names.setdefault('Loc', list()).append(feature_name)
-        elif feature_name.startswith('location_quick_features'):
-            feat_sensor_names.setdefault('Loc', list()).append(feature_name)
-        elif feature_name.startswith('audio_naive'):
-            feat_sensor_names.setdefault('Aud', list()).append(feature_name)
-        elif feature_name.startswith('audio_properties'):
-            # feat_sensor_names.setdefault('AP', list()).append(feature_name)
-            pass
-        elif feature_name.startswith('discrete'):
-            feat_sensor_names.setdefault('PS', list()).append(feature_name)
-        elif feature_name.startswith('lf_measurements'):
-            # feat_sensor_names.setdefault('LF', list()).append(feature_name)
-            pass
-        else:
-            raise ValueError("!!! Unsupported feature name: %s" % feature_name)
-
-    return feat_sensor_names
+# def get_sensor_names(feature_names: list):
+#     sensors_mapping = _get_sensor_names_from_features(feature_names)
+#
+#     return sensors_mapping
 
 
-def conc(str_a, str_b):
-    s = str_a + ' ' + str_b
+# def _get_sensor_names_from_features(feature_names):
+#     # TODO: consider to uncomment sensors that wasn't used in the article
+#     feat_sensor_names = dict()
+#
+#     for feature_name in feature_names:
+#         if feature_name.startswith('raw_acc'):
+#             feat_sensor_names.setdefault('Acc', list()).append(feature_name)
+#         elif feature_name.startswith('proc_gyro'):
+#             feat_sensor_names.setdefault('Gyro', list()).append(feature_name)
+#         elif feature_name.startswith('raw_magnet'):
+#             # feat_sensor_names.setdefault('Magnet', list()).append(feature_name)
+#             pass
+#         elif feature_name.startswith('watch_acceleration'):
+#             feat_sensor_names.setdefault('WAcc', list()).append(feature_name)
+#         elif feature_name.startswith('watch_heading'):
+#             # feat_sensor_names.setdefault('Compass', list()).append(feature_name)
+#             pass
+#         elif feature_name.startswith('location'):
+#             feat_sensor_names.setdefault('Loc', list()).append(feature_name)
+#         elif feature_name.startswith('location_quick_features'):
+#             feat_sensor_names.setdefault('Loc', list()).append(feature_name)
+#         elif feature_name.startswith('audio_naive'):
+#             feat_sensor_names.setdefault('Aud', list()).append(feature_name)
+#         elif feature_name.startswith('audio_properties'):
+#             # feat_sensor_names.setdefault('AP', list()).append(feature_name)
+#             pass
+#         elif feature_name.startswith('discrete'):
+#             feat_sensor_names.setdefault('PS', list()).append(feature_name)
+#         elif feature_name.startswith('lf_measurements'):
+#             # feat_sensor_names.setdefault('LF', list()).append(feature_name)
+#             pass
+#         else:
+#             raise ValueError("!!! Unsupported feature name: %s" % feature_name)
+#
+#     return feat_sensor_names
+#
+#
+# def conc(str_a, str_b):
+#     s = str_a + ' ' + str_b
+#
+#     return s
 
-    return s
+
+# def get_folds_list(fold_path):
+#     train_folds = []
+#     test_folds = []
+#     for fold_number in range(5):
+#         train_fold = get_single_fold_data('train', fold_number, fold_path)
+#         test_fold = get_single_fold_data('test', fold_number, fold_path)
+#         train_folds.append(train_fold)
+#         test_folds.append(test_fold)
+#     return train_folds, test_folds
 
 
-def get_folds_list(fold_path):
-    train_folds = []
-    test_folds = []
-    for fold_number in range(5):
-        train_fold = get_single_fold_data('train', fold_number, fold_path)
-        test_fold = get_single_fold_data('test', fold_number, fold_path)
-        train_folds.append(train_fold)
-        test_folds.append(test_fold)
-    return train_folds, test_folds
-
-
-def get_single_fold_data(fold_type, fold_number, fold_path):
-    uuids_fold_lst = []
-    fold_sources = ['android', 'iphone']
-
-    for fold_src in fold_sources:
-        with open(fold_path / f"fold_{fold_number}_{fold_type}_{fold_src}_uuids.txt", 'r') as fis:
-            for line in fis:
-                if line is not '':
-                    uuid = line.strip()
-                    uuids_fold_lst.append(uuid)
-
-    return uuids_fold_lst
+# def get_single_fold_data(fold_type, fold_number, fold_path):
+#     uuids_fold_lst = []
+#     fold_sources = ['android', 'iphone']
+#
+#     for fold_src in fold_sources:
+#         with open(fold_path / f"fold_{fold_number}_{fold_type}_{fold_src}_uuids.txt", 'r') as fis:
+#             for line in fis:
+#                 if line is not '':
+#                     uuid = line.strip()
+#                     uuids_fold_lst.append(uuid)
+#
+#     return uuids_fold_lst
 
 
 # def _get_fold_kind(fold_num, fold_path, fold_type):
@@ -125,10 +134,10 @@ def get_single_fold_data(fold_type, fold_number, fold_path):
 #     return _get_single_fold_uuids_lst("test", fold_num, fold_path)
 
 
-def get_label_data(fold, label):
-    mask = ~fold[label].isnull()
-
-    return fold[mask]
+# def get_label_data(fold, label):
+#     mask = ~fold[label].isnull()
+#
+#     return fold[mask]
 
 
 # def optimize_features_data(features_df):

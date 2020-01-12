@@ -2,6 +2,9 @@ import argparse
 
 from utils.GeneralUtils import *
 from extra_sensory import ExtraSensory
+from warnings import simplefilter
+# ignore all future warnings
+simplefilter(action='ignore', category=FutureWarning)
 
 LOG_PATH = r".\log\classifier.log"
 
@@ -11,7 +14,7 @@ def get_arguments():
                                                  'the Recognizing Detailed Human Context article.')
     parser.add_argument('-p', '--preprocess', type=bool, help='flag for preprocess the data', default=False)
     parser.add_argument('-t', '--train', type=bool, help='flag for training models', default=True)
-    parser.add_argument('-e', '--eval', type=bool, help='flag for evaluate and test models', default=False)
+    # parser.add_argument('-e', '--eval', type=bool, help='flag for evaluate and test models', default=False)
     parser.add_argument('-l', '--learn_params', type=bool, help='flag for learning parameters for the a model', default=True)
     parser.add_argument('-e', '--estimator', type=str, help='the name of the sklearn estimator', default='early_fusion')
     parser.add_argument('-m', '--model', type=str, help='the name of the article model', default='logistic_regression')
@@ -28,3 +31,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
