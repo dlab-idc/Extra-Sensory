@@ -21,18 +21,9 @@ class ClassifierTrainer:
         self.logger = getLogger('classifier')
         self.model_name = None
 
-    # def train_models(self, model: ExtraSensoryAbstractModel):
-    #     for i in range(self.fold_number):
-    #         self.logger.info(f"Training {self.model_name} with fold_{i}")
-    #         train_fold = self.fold_file_format.format("train", i)
-    #         # test_fold = self.fold_file_format.format("test", i)
-    #         self.logger.info(f"Reading fold_{i}")
-    #         train_df = pd.read_csv(train_fold, index_col="uuid", header=0)
-    #         # test_df = pd.read_csv(test_fold, index_col="uuid", header=0)
-    #         self.train_model(train_df, i, model)
-
     def train_model(self, train, model: ExtraSensoryAbstractModel):
-        X, y = get_X_y(train)
+        pipe = model.get_pipe()
+        X, y = get_X_y(train, pipe)
         self.logger.info(f"Training {self.model_name}")
         model.fit(X, y)
         self.save_model(model)
@@ -40,7 +31,7 @@ class ClassifierTrainer:
     def load_model(self):
         pass
 
-    def save_model(self, model,):
+    def save_model(self, model):
         file_name = self.format_dict['model_file'].format(self.model_name, datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))
         self.logger.info(f"Saving {self.model_name} in {file_name}")
         file_path = os.path.join(self.directories_dict['models'], file_name)

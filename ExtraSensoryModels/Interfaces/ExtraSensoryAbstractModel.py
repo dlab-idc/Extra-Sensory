@@ -10,3 +10,7 @@ class ExtraSensoryAbstractModel(ABC, BaseEstimator, ClassifierMixin):
     @abstractmethod
     def predict(self, X):
         pass
+
+    @abstractmethod
+    def get_pipe(self):
+        pass

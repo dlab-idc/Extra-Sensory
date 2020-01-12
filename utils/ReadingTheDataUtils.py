@@ -2,15 +2,6 @@ from glob import glob
 import pandas as pd
 
 
-
-
-
-
-
-
-
-
-
 # def get_label_names(df: pd.DataFrame):
 #     label_names = list(filter(lambda x: x.startswith('label:'), df.columns))
 #
@@ -156,3 +147,12 @@ import pandas as pd
 #     to_category_cols += label_names
 #
 #     features_df[to_category_cols] = features_df[to_category_cols].astype('category')
+
+
+def get_dataframe(fold):
+    dataframe = pd.read_csv(fold, index_col="uuid", header=0)
+    dataframe['label'] = dataframe['label'].astype('category')
+    for col in dataframe.columns:
+        if col.startswith('discrete'):
+            dataframe[col] = dataframe[col].astype('category')
+    return dataframe

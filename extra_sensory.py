@@ -8,6 +8,7 @@ from ExtraSensoryModels.Models import early_fusion, late_fusion_averaging, late_
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from logging import getLogger
+from utils.ReadingTheDataUtils import get_dataframe
 
 
 class ExtraSensory:
@@ -46,21 +47,13 @@ class ExtraSensory:
     def create_model(self, arguments, model_name, model_number=None):
         train_fold, test_fold = self.get_folds_files_names(model_number)
         self.logger.info(f"Reading train {train_fold}")
-        train_df = self.get_dataframe(train_fold)
+        train_df = get_dataframe(train_fold)
         model, params = self.get_extra_sensory_model(model_name)
         if arguments.learn_params:
             params = self.hyper_parameter_learner.async_grid_search(train_df.copy(), model)
         model.set_params(**params)
         self.classifier_trainer.model_name = f'{model_name}_{model_number}' if model_number else model_name
         self.classifier_trainer.train_model(train_df, model)
-
-    def get_dataframe(self, train_fold):
-        train_df = pd.read_csv(train_fold, index_col="uuid", header=0)
-        train_df['label'] = train_df['label'].astype('category')
-        for col in train_df.columns:
-            if col.startswith('discrete'):
-                train_df[col] = train_df[col].astype('category')
-        return train_df
 
     def get_folds_files_names(self, fold_number):
         if fold_number:
@@ -73,7 +66,9 @@ class ExtraSensory:
 
     def get_extra_sensory_model(self, name):
         params = self.params[name]
-        estimator = self.get_sklearn_model(params['model_params'].pop('estimator'))
+        estimator_name = params['model_params'].pop('estimator')
+        estimator = self.get_sklearn_model(estimator_name)
+        self.hyper_parameter_learner.set_estimator(estimator_name)
         model = None
         if name in 'early_fusion':
             model = early_fusion.EarlyFusion(estimator)
@@ -88,8 +83,10 @@ class ExtraSensory:
     @staticmethod
     def get_sklearn_model(name):
         estimator = None
-        if name in 'logistic regression':
+        if name in 'logistic_regression':
             estimator = LogisticRegression()
-        elif name in 'random forest':
+        elif name in 'random_forest':
             estimator = RandomForestClassifier()
+        else:
+            raise Exception("Invalid sklearn model name")
         return estimator

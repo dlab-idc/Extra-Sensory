@@ -1,7 +1,11 @@
+from tempfile import mkdtemp
+
 import pandas as pd
 import numpy as np
 
 from enum import Enum
+
+from sklearn.feature_selection import SelectPercentile, mutual_info_regression, mutual_info_classif, VarianceThreshold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.base import TransformerMixin, BaseEstimator
@@ -115,15 +119,15 @@ def get_single_pre_pipe():
     ]
 
     pipe = Pipeline([
-        ("mixed_column_transformer", MixedColumnTransformer(transormers))
-    ])
+        ("mixed_column_transformer", MixedColumnTransformer(transormers)),
+        ("variance_threshold", VarianceThreshold(threshold=0.2))
+    ], verbose=True, memory=mkdtemp())
 
     return pipe
 
 
-def get_X_y(train):
-    y = np.array(train['label'])
-    train.drop(['label'], axis=1, inplace=True)
-    pipe = get_single_pre_pipe()
-    X = pipe.fit_transform(train)
+def get_X_y(data, pipe, is_fitted=False):
+    y = np.array(data['label']).astype('uint8')
+    data.drop(['label'], axis=1, inplace=True)
+    X = pipe.transform(data) if is_fitted else pipe.fit_transform(data, y)
     return X, y

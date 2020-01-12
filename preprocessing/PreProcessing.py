@@ -37,16 +37,19 @@ class PreProcess:
         for fold_number, data in enumerate(self.fold_list):
             self.logger.info(f"Creating fold data number {fold_number}")
             train_fold, test_fold = data
-            train_fd = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
-            test_fd = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
+            train_df = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
+            test_df = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
             self.logger.info(f"Saving train fold number {fold_number}")
             train_path = os.path.join(self.directories_dict['fold'],
                                       self.format_dict['fold_file'].format('train', fold_number))
-            train_fd.to_csv(train_path)
+            ###
+            # add feature selection
+            ###
+            train_df.to_csv(train_path)
             self.logger.info(f"Saving test fold number {fold_number}")
             test_path = os.path.join(self.directories_dict['fold'],
                                      self.format_dict['fold_file'].format('test', fold_number))
-            test_fd.to_csv(test_path)
+            test_df.to_csv(test_path)
 
     def create_merge_data(self):
         """
@@ -195,12 +198,15 @@ class PreProcess:
     def create_data(self):
         self.logger.info(f"Creating data set")
         train_fold, test_fold = self.fold_list[0]
-        train_fd = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
-        test_fd = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
+        train_df = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
+        test_df = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
+        ###
+        # add feature selection
+        ###
         self.logger.info(f"Saving train data")
-        train_fd.to_csv(os.path.join(self.directories_dict['fold'], 'train.csv'))
+        train_df.to_csv(os.path.join(self.directories_dict['fold'], 'train.csv'))
         self.logger.info(f"Saving test data")
-        test_fd.to_csv(os.path.join(self.directories_dict['fold'], 'test.csv'))
+        test_df.to_csv(os.path.join(self.directories_dict['fold'], 'test.csv'))
 
 # if __name__ == '__main__':
 #     config = ConfigParser()
