@@ -31,9 +31,9 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
             self.validate_input(column_dtype, transformer)
 
             if column_dtype == ColumnTypeEnum.CATEGORY:
-                X_category = transformer.fit_transform(X_category)
+                X_category = transformer.fit_transform(X_category, y)
             elif column_dtype == ColumnTypeEnum.NUMERIC:
-                X_numeric = transformer.fit_transform(X_numeric)
+                X_numeric = transformer.fit_transform(X_numeric, y)
             else:
                 raise ValueError(f"{column_dtype} is not a supported column data type")
 
@@ -93,7 +93,7 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
         :param fit_params: (require by sklearn api)
         :return: numpy array, the transformed data according to the transformer
         """
-        self.fit(X)
+        self.fit(X, y)
         X_transformed = self.transform(X)
 
         return X_transformed
