@@ -11,24 +11,22 @@ from utils.GeneralUtils import *
 Model = List[ExtraSensoryAbstractModel]
 
 
-class ModelTrainer:
+class ClasifaierTrainer:
     def __init__(self):
-        self.config = ConfigManager.get_config('ClassifierMaker')
+        self.config = ConfigManager.get_config('ClassifierTrainer')
         self.directories = self.config['directories']
-        self.fold_number = int(self.config['folds']['fold_number'])
-        self.fold_file_format = self.config['formats']['fold_file']
         self.logger = getLogger('classifier')
         self.model_name = None
 
-    def train_models(self, model: ExtraSensoryAbstractModel):
-        for i in range(self.fold_number):
-            self.logger.info(f"Training {self.model_name} with fold_{i}")
-            train_fold = self.fold_file_format.format("train", i)
-            # test_fold = self.fold_file_format.format("test", i)
-            self.logger.info(f"Reading fold_{i}")
-            train_df = pd.read_csv(train_fold, index_col="uuid", header=0)
-            # test_df = pd.read_csv(test_fold, index_col="uuid", header=0)
-            self.train_model(train_df, i, model)
+    # def train_models(self, model: ExtraSensoryAbstractModel):
+    #     for i in range(self.fold_number):
+    #         self.logger.info(f"Training {self.model_name} with fold_{i}")
+    #         train_fold = self.fold_file_format.format("train", i)
+    #         # test_fold = self.fold_file_format.format("test", i)
+    #         self.logger.info(f"Reading fold_{i}")
+    #         train_df = pd.read_csv(train_fold, index_col="uuid", header=0)
+    #         # test_df = pd.read_csv(test_fold, index_col="uuid", header=0)
+    #         self.train_model(train_df, i, model)
 
     def train_model(self, train, model_number, model: ExtraSensoryAbstractModel):
         X, y = get_X_y(train)
