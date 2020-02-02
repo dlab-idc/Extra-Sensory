@@ -115,12 +115,12 @@ def get_single_pre_pipe():
         ('ohe', OneHotEncoder(sparse=False), ColumnTypeEnum.CATEGORY),
         ('scaler', StandardScaler(), ColumnTypeEnum.NUMERIC),
         ('SimpleImputerCat', SimpleImputer(strategy="most_frequent"), ColumnTypeEnum.CATEGORY),
-        ('SimpleImputerNum', SimpleImputer(strategy='mean'), ColumnTypeEnum.NUMERIC)
+        ('SimpleImputerNum', SimpleImputer(strategy='most_frequent'), ColumnTypeEnum.NUMERIC)
     ]
 
     pipe = Pipeline([
         ("mixed_column_transformer", MixedColumnTransformer(transormers)),
-        ("variance_threshold", VarianceThreshold(threshold=0.2))
+        ("select_percentile", SelectPercentile(percentile=30))
     ], verbose=True, memory=mkdtemp())
 
     return pipe

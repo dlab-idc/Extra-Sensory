@@ -42,9 +42,6 @@ class PreProcess:
             self.logger.info(f"Saving train fold number {fold_number}")
             train_path = os.path.join(self.directories_dict['fold'],
                                       self.format_dict['fold_file'].format('train', fold_number))
-            ###
-            # add feature selection
-            ###
             train_df.to_csv(train_path)
             self.logger.info(f"Saving test fold number {fold_number}")
             test_path = os.path.join(self.directories_dict['fold'],

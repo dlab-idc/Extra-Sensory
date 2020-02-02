@@ -14,7 +14,7 @@ Model = List[ExtraSensoryAbstractModel]
 
 class ClassifierTrainer:
     def __init__(self):
-        self.config = ConfigManager.get_config('ClassifierTrainer')
+        #self.config = ConfigManager.get_config('ClassifierTrainer')
         general_config = ConfigManager.get_config('General')
         self.directories_dict = general_config['directories']
         self.format_dict = general_config['formats']

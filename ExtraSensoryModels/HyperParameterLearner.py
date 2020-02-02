@@ -15,6 +15,7 @@ class HyperParameterLearner:
         self.param_grid = None
         self.cross_validation_folds_number = None
         self.scoring_function = None
+        self.is_all_set = self.config['groups']['is_all_data']
 
     def async_grid_search(self, train, model : ExtraSensoryAbstractModel):
         """
@@ -36,19 +37,32 @@ class HyperParameterLearner:
                                       verbose=10
                                       )
         best_estimator.fit(X, y, groups=groups)
+        pd.DataFrame(best_estimator.cv_results_).to_csv("results.csv")
         self.logger.info(f"CV results {best_estimator.cv_results_}")
         self.logger.info(f"Best params are {best_estimator.best_params_}")
         return best_estimator.best_params_
 
-    @staticmethod
-    def get_uuid_groups(train):
+    def get_uuid_groups(self, train):
         """
         Map every uuid to unique numeric group number
         :param train: data frame
         :return: np array where every index is the group number of the index in the train data frame
         """
-        groups = pd.Series(train.index).astype('category').cat.codes
+        if self.is_all_set:
+            mapping = self.create_uuid_mapping()
+            groups = pd.Series(train.index.map(mapping))
+        else:
+            groups = pd.Series(train.index).astype('category').cat.codes
         return groups
+
+    def create_uuid_mapping(self):
+        mapping = {}
+        for group_number, uuid_list in self.config['groups']['groups_dict'].items():
+            for uuid in uuid_list:
+                mapping[uuid] = group_number
+        return mapping
+
+
 
     def get_param_grid(self, params_list):
         grid_params_list = []

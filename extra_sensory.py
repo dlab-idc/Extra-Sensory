@@ -48,6 +48,10 @@ class ExtraSensory:
         train_fold, test_fold = self.get_folds_files_names(model_number)
         self.logger.info(f"Reading train {train_fold}")
         train_df = get_dataframe(train_fold)
+        if self.hyper_parameter_learner.is_all_set:
+            self.logger.info(f"Training on all data set. Reading test {test_fold}")
+            test_df = get_dataframe(test_fold)
+            train_df = pd.concat([train_df, test_df])
         model, params = self.get_extra_sensory_model(model_name)
         if arguments.learn_params:
             params = self.hyper_parameter_learner.async_grid_search(train_df.copy(), model)
