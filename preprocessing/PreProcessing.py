@@ -4,6 +4,7 @@ import pandas as pd
 from glob import glob
 from utils.GeneralUtils import *
 from logging import getLogger
+from sklearn.feature_selection import SelectPercentile
 
 
 class PreProcess:
@@ -28,6 +29,7 @@ class PreProcess:
     def create_data_set(self):
         self.logger.info("Creating merged data")
         self.create_merge_data()
+        self.feature_selection()
         if self.is_fold:
             self.create_data_by_folds()
         else:
@@ -37,8 +39,8 @@ class PreProcess:
         for fold_number, data in enumerate(self.fold_list):
             self.logger.info(f"Creating fold data number {fold_number}")
             train_fold, test_fold = data
-            train_df = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
-            test_df = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
+            train_df = self.data.loc[train_fold]
+            test_df = self.data.loc[test_fold]
             self.logger.info(f"Saving train fold number {fold_number}")
             train_path = os.path.join(self.directories_dict['fold'],
                                       self.format_dict['fold_file'].format('train', fold_number))
@@ -197,18 +199,16 @@ class PreProcess:
         train_fold, test_fold = self.fold_list[0]
         train_df = self.data.loc[train_fold].drop(['timestamp', 'label_name'], axis=1)
         test_df = self.data.loc[test_fold].drop(['timestamp', 'label_name'], axis=1)
-        ###
-        # add feature selection
-        ###
         self.logger.info(f"Saving train data")
         train_df.to_csv(os.path.join(self.directories_dict['fold'], 'train.csv'))
         self.logger.info(f"Saving test data")
         test_df.to_csv(os.path.join(self.directories_dict['fold'], 'test.csv'))
 
-# if __name__ == '__main__':
-#     config = ConfigParser()
-#     config.read(
-#         r'C:\Users\itama\Desktop\courses\Project\Extra-Sensory-Yarden\src\PyProject\config\preprocessing_config.ini')
-#     config = config_to_dict(config)
-#     test = PreProcess(config)
-#     test.create_data_set()
+    def feature_selection(self):
+        y = np.array(self.data['label']).astype('uint8')
+        X = self.data.copy()
+        X.drop(['label', 'timestamp', 'label_name'], axis=1, inplace=True)
+        X = X.fillna()
+        X = SelectPercentile(percentile=30).fit_transform(X=X, y=y)
+        self.data = pd.merge(X, y, how='left', left_on=['uuid', 'timestamp'], right_on=['uuid', 'timestamp'])
+

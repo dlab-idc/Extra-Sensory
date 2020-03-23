@@ -1,4 +1,6 @@
 import logging
+import os
+
 import pandas as pd
 import itertools
 
@@ -11,13 +13,14 @@ from ExtraSensoryModels.Interfaces.ExtraSensoryAbstractModel import ExtraSensory
 class HyperParameterLearner:
     def __init__(self):
         self.config = ConfigManager.get_config('hyper_parameters_learner')
+        self.directories = ConfigManager.get_config('General')['directories']
         self.logger = logging.getLogger('classifier')
         self.param_grid = None
         self.cross_validation_folds_number = None
         self.scoring_function = None
         self.is_all_set = self.config['groups']['is_all_data']
 
-    def async_grid_search(self, train, model : ExtraSensoryAbstractModel):
+    def async_grid_search(self, train, model: ExtraSensoryAbstractModel, model_name):
         """
         This function finds the best params for an estimator using greed search.
         Cross validation process is done by group K folds by uuid of the person.
@@ -37,9 +40,10 @@ class HyperParameterLearner:
                                       verbose=10
                                       )
         best_estimator.fit(X, y, groups=groups)
-        pd.DataFrame(best_estimator.cv_results_).to_csv("results.csv")
-        self.logger.info(f"CV results {best_estimator.cv_results_}")
-        self.logger.info(f"Best params are {best_estimator.best_params_}")
+        results_path = os.path.join(self.directories['results'], f"hyper_parameters_results_{model_name}.csv")
+        pd.DataFrame(best_estimator.cv_results_).to_csv(results_path)
+        # self.logger.info(f"CV results {best_estimator.cv_results_}")
+        # self.logger.info(f"Best params are {best_estimator.best_params_}")
         return best_estimator.best_params_
 
     def get_uuid_groups(self, train):
@@ -61,8 +65,6 @@ class HyperParameterLearner:
             for uuid in uuid_list:
                 mapping[uuid] = group_number
         return mapping
-
-
 
     def get_param_grid(self, params_list):
         grid_params_list = []

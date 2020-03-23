@@ -5,9 +5,9 @@ import numpy as np
 
 from enum import Enum
 
-from sklearn.feature_selection import SelectPercentile, mutual_info_regression, mutual_info_classif, VarianceThreshold
+
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.impute import SimpleImputer
 
@@ -112,15 +112,13 @@ def split_cat_num_cols(X: pd.DataFrame):
 
 def get_single_pre_pipe():
     transormers = [
-        ('ohe', OneHotEncoder(sparse=False), ColumnTypeEnum.CATEGORY),
-        ('scaler', StandardScaler(), ColumnTypeEnum.NUMERIC),
-        ('SimpleImputerCat', SimpleImputer(strategy="most_frequent"), ColumnTypeEnum.CATEGORY),
-        ('SimpleImputerNum', SimpleImputer(strategy='most_frequent'), ColumnTypeEnum.NUMERIC)
+                ('scaler', StandardScaler(), ColumnTypeEnum.NUMERIC),
+                ('SimpleImputerCat', SimpleImputer(strategy="most_frequent"), ColumnTypeEnum.CATEGORY),
+                ('SimpleImputerNum', SimpleImputer(strategy='most_frequent'), ColumnTypeEnum.NUMERIC)
     ]
 
     pipe = Pipeline([
-        ("mixed_column_transformer", MixedColumnTransformer(transormers)),
-        ("select_percentile", SelectPercentile(percentile=30))
+        ("mixed_column_transformer", MixedColumnTransformer(transormers))
     ], verbose=True, memory=mkdtemp())
 
     return pipe
