@@ -1,7 +1,7 @@
 import argparse
 
 from utils.GeneralUtils import *
-from extra_sensory import ExtraSensory
+from ExtraSensoryModules.ExtraSensoryManager import ExtraSensoryManager
 from warnings import simplefilter
 # ignore all future warnings
 simplefilter(action='ignore', category=FutureWarning)
@@ -12,10 +12,10 @@ LOG_PATH = r".\log\classifier.log"
 def get_arguments():
     parser = argparse.ArgumentParser(description='This program preprocess, train and evaluate model and data base on '
                                                  'the Recognizing Detailed Human Context article.')
-    parser.add_argument('-p', '--preprocess', type=bool, help='flag for preprocess the data', default=True)
-    parser.add_argument('-t', '--train', type=bool, help='flag for training models', default=False)
-    parser.add_argument('-e', '--eval', type=bool, help='flag for evaluate and test models', default=False)
-    parser.add_argument('-l', '--learn_params', type=bool, help='flag for learning parameters for the a model', default=False)
+    parser.add_argument('-p', '--preprocess', type=bool, help='flag for preprocess the data', default=False)
+    parser.add_argument('-t', '--train', type=bool, help='flag for training models', default=True)
+    parser.add_argument('-e', '--eval', type=bool, help='flag for evaluate and test models', default=True)
+    parser.add_argument('-l', '--learn_params', type=bool, help='flag for learning parameters for the a model', default=True)
     parser.add_argument('-es', '--estimator', type=str, help='the name of the sklearn estimator', default='early_fusion')
     parser.add_argument('-m', '--model', type=str, help='the name of the article model', default='logistic_regression')
     parser.add_argument('-a', '--all_data', type=str, help='flag for performing grid search on all data', default=False)
@@ -26,7 +26,7 @@ def get_arguments():
 def main():
     arguments = get_arguments()
     setup_custom_logger(LOG_PATH, 'classifier')
-    extra_sensory = ExtraSensory()
+    extra_sensory = ExtraSensoryManager()
     extra_sensory.run(arguments)
 
 

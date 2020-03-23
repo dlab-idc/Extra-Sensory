@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 
 from glob import glob
+
+from sklearn.impute import SimpleImputer
+
 from utils.GeneralUtils import *
 from logging import getLogger
 from sklearn.feature_selection import SelectPercentile
@@ -30,6 +33,8 @@ class PreProcess:
         self.logger.info("Creating merged data")
         self.create_merge_data()
         self.feature_selection()
+        self.logger.info("Saving data set")
+        self.data.to_csv(self.directories_dict['data_set'])
         if self.is_fold:
             self.create_data_by_folds()
         else:
@@ -58,7 +63,6 @@ class PreProcess:
         data = pd.merge(features_df, label_df, how='left', left_on=['uuid', 'timestamp'],
                         right_on=['uuid', 'timestamp'])
         self.set_labels(data)
-        data.to_csv(self.directories_dict['data_set'])
         self.data = data.reindex(sorted(data.columns), axis=1)
 
     def set_labels(self, data):
@@ -205,10 +209,32 @@ class PreProcess:
         test_df.to_csv(os.path.join(self.directories_dict['fold'], 'test.csv'))
 
     def feature_selection(self):
-        y = np.array(self.data['label']).astype('uint8')
+        self.logger.info('Preparing data for feature selection')
+        y = self.data['label']
         X = self.data.copy()
         X.drop(['label', 'timestamp', 'label_name'], axis=1, inplace=True)
-        X = X.fillna()
-        X = SelectPercentile(percentile=30).fit_transform(X=X, y=y)
-        self.data = pd.merge(X, y, how='left', left_on=['uuid', 'timestamp'], right_on=['uuid', 'timestamp'])
+        X = self.fill_nan(X)
+        self.logger.info("Starting feature selection")
+        feature_selector = SelectPercentile(percentile=30)
+        X = feature_selector.fit_transform(X=X, y=y)
+        columns_mask = feature_selector.get_support()
+        self.data.drop(['label', 'timestamp', 'label_name'], axis=1, inplace=True)
+        selected_columns = self.data.loc[:, columns_mask].columns
+        self.data = pd.DataFrame(X, columns=selected_columns, index=self.data.index)
+        self.data['label'] = y
 
+    def fill_nan(self, X):
+        X = self.change_discrete_columns_types(X)
+        discrete_columns = X.select_dtypes(exclude=['category']).columns
+        category_columns = X.select_dtypes(include=['category']).columns
+        X[discrete_columns] = X[discrete_columns].fillna(X[discrete_columns].mean())
+        X[category_columns] = pd.DataFrame(SimpleImputer(strategy='most_frequent').fit_transform(X[category_columns]),
+                                           columns=category_columns, index=X[category_columns].index)
+        return X
+
+    @staticmethod
+    def change_discrete_columns_types(X):
+        for col in X.columns:
+            if col.startswith('discrete'):
+                X[col] = X[col].astype('category')
+        return X

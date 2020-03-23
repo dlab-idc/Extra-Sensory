@@ -3,20 +3,20 @@ import numpy as np
 
 from utils.GeneralUtils import *
 from preprocessing.PreProcessing import PreProcess
-from ExtraSensoryModels.HyperParameterLearner import HyperParameterLearner
-from ExtraSensoryModels.ClassifierTrainer import ClassifierTrainer
+from ExtraSensoryModules.HyperParameterLearner import HyperParameterLearner
+from ExtraSensoryModules.ClassifierTrainer import ClassifierTrainer
 from ExtraSensoryModels.Models import early_fusion  # , late_fusion_averaging, late_fusion_learning, single_sensor
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from logging import getLogger
 from utils.ReadingTheDataUtils import get_dataframe
-from evaluator import Evaluator
+from ExtraSensoryModules.Evaluator import Evaluator
 
 NUM_OF_LABELS = 6
 CONFUSION_MATRIX_LABELS = 4
 
 
-class ExtraSensory:
+class ExtraSensoryManager:
 
     # region Constrictor
     def __init__(self):
@@ -42,9 +42,12 @@ class ExtraSensory:
             self.preprocess.create_data_set()
         if arguments.train:
             if self.is_fold:
+                self.logger.info("Training models per fold")
                 self.create_model_per_fold(arguments)
             else:
+                self.logger.info("Training one model")
                 for name in self.models_types:
+                    self.logger.info(f"Training {name}")
                     self.create_model(arguments, name)
         if arguments.eval:
             if self.is_fold:
@@ -69,10 +72,10 @@ class ExtraSensory:
     def create_model_per_fold(self, arguments):
         for model_number in range(self.fold_number):
             for name in self.models_types:
+                self.logger.info(f"Training {name}_{model_number}")
                 self.create_model(arguments, name, model_number)
 
     def create_model(self, arguments, model_name, model_number=None):
-        model_name = model_name if model_number is None else f'{model_name}_{model_number}'
         train_fold, test_fold = self.get_folds_files_names(model_number)
         self.logger.info(f"Reading train {train_fold}")
         train_df = get_dataframe(train_fold)
@@ -81,6 +84,7 @@ class ExtraSensory:
             test_df = get_dataframe(test_fold)
             train_df = pd.concat([train_df, test_df])
         model, params = self.get_extra_sensory_model(model_name)
+        model_name = model_name if model_number is None else f'{model_name}_{model_number}'
         if arguments.learn_params:
             params = self.hyper_parameter_learner.async_grid_search(train_df.copy(), model, model_name)
         model.set_params(**params)

@@ -9,6 +9,9 @@ from utils.TransformerUtils import get_X_y
 from sklearn.model_selection import GridSearchCV, GroupKFold
 from ExtraSensoryModels.Interfaces.ExtraSensoryAbstractModel import ExtraSensoryAbstractModel
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 
 class HyperParameterLearner:
     def __init__(self):
