@@ -4,6 +4,7 @@ import pandas as pd
 from glob import glob
 
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
 
 from utils.GeneralUtils import *
 from logging import getLogger
@@ -185,7 +186,7 @@ class PreProcess:
         for fold_source in fold_sources:
             file_name = f"fold_{fold_number}_{fold_type}_{fold_source}_uuids.txt"
             file_path = os.path.join(self.directories_dict['cv_5_folds'], file_name)
-            uuids_fold_list = self.read_data(file_path)
+            uuids_fold_list += self.read_data(file_path)
         return uuids_fold_list
 
     @staticmethod
@@ -214,22 +215,24 @@ class PreProcess:
         X = self.data.copy()
         X.drop(['label', 'timestamp', 'label_name'], axis=1, inplace=True)
         X = self.fill_nan(X)
+        # X.to_csv('test_data.csv')
         self.logger.info("Starting feature selection")
         feature_selector = SelectPercentile(percentile=30)
         X = feature_selector.fit_transform(X=X, y=y)
         columns_mask = feature_selector.get_support()
         self.data.drop(['label', 'timestamp', 'label_name'], axis=1, inplace=True)
         selected_columns = self.data.loc[:, columns_mask].columns
-        self.data = pd.DataFrame(X, columns=selected_columns, index=self.data.index)
-        self.data['label'] = y
+        self.data = self.data[selected_columns]
 
     def fill_nan(self, X):
         X = self.change_discrete_columns_types(X)
-        discrete_columns = X.select_dtypes(exclude=['category']).columns
+        numeric_columns = X.select_dtypes(exclude=['category']).columns
         category_columns = X.select_dtypes(include=['category']).columns
-        X[discrete_columns] = X[discrete_columns].fillna(X[discrete_columns].mean())
+        X.loc[:, numeric_columns] = self.standard_data_scaling(X[numeric_columns])
+        X[numeric_columns] = X[numeric_columns].fillna(X[numeric_columns].mean())
         X[category_columns] = pd.DataFrame(SimpleImputer(strategy='most_frequent').fit_transform(X[category_columns]),
                                            columns=category_columns, index=X[category_columns].index)
+        X = self.change_discrete_columns_types(X)
         return X
 
     @staticmethod
@@ -238,3 +241,10 @@ class PreProcess:
             if col.startswith('discrete'):
                 X[col] = X[col].astype('category')
         return X
+
+    @staticmethod
+    def standard_data_scaling(X):
+        scaler = StandardScaler()
+        scaler.fit(X)
+        scale_X = scaler.transform(X)
+        return scale_X

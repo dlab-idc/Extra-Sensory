@@ -5,7 +5,6 @@ from ExtraSensoryModels.Interfaces.ExtraSensoryAbstractModel import ExtraSensory
 from utils.TransformerUtils import *
 from logging import getLogger
 from utils.GeneralUtils import *
-from datetime import datetime
 
 Model = List[ExtraSensoryAbstractModel]
 

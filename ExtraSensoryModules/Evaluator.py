@@ -17,6 +17,14 @@ class Evaluator:
         self.models_list = []
         self.model_name = None
 
+    def eval(self, test_df):
+        model = self.load_model()
+        pipe = model.get_pipe()
+        X, y = get_X_y(test_df, pipe, is_fitted=True)
+        test_class_weights = np.zeros((self.number_of_labels,), dtype='int')
+        test_class_weights += self.get_test_weights(y)
+        return self.get_model_state(X, y, model)
+
     def load_model(self):
         model_file_name = self.format_dict['model_file'].format(self.model_name)
         model_file_path = os.path.join(self.directories_dict['models'], model_file_name)
@@ -33,14 +41,6 @@ class Evaluator:
             raise Exception(f"class_counts length is diffrent from {self.number_of_labels}")
 
         return class_counts
-
-    def eval(self, test_df):
-        model = self.load_model()
-        pipe = model.get_pipe()
-        X, y = get_X_y(test_df, pipe, is_fitted=True)
-        test_class_weights = np.zeros((self.number_of_labels,), dtype='int')
-        test_class_weights += self.get_test_weights(y)
-        return self.get_model_state(X, y, model)
 
     def get_model_state(self, X, y, model):
         prediction = model.predict(X)

@@ -7,7 +7,7 @@ from utils.TransformerUtils import get_single_pre_pipe
 
 class EarlyFusion(ExtraSensoryAbstractModel):
 
-    def __init__(self, estimator: BaseEstimator, model_params: dict = None):
+    def __init__(self, estimator: BaseEstimator,  model_params: dict = None):
         """
 
         :param estimator: sklearn estimator constructor

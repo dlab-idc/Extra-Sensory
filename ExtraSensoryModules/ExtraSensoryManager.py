@@ -58,8 +58,8 @@ class ExtraSensoryManager:
 
     def get_folds_files_names(self, fold_number):
         if fold_number is None:
-            train_fold = os.path.join(self.directories_dict['fold'], 'train_2.csv')
-            test_fold = os.path.join(self.directories_dict['fold'], 'test_2.csv')
+            train_fold = os.path.join(self.directories_dict['fold'], 'train_3.csv')
+            test_fold = os.path.join(self.directories_dict['fold'], 'test_3.csv')
         else:
             train_file_name = self.format_dict['fold_file'].format("train", fold_number)
             test_file_name = self.format_dict['fold_file'].format("test", fold_number)
@@ -72,10 +72,25 @@ class ExtraSensoryManager:
     def create_model_per_fold(self, arguments):
         for model_number in range(self.fold_number):
             for name in self.models_types:
-                self.logger.info(f"Training {name}_{model_number}")
                 self.create_model(arguments, name, model_number)
 
     def create_model(self, arguments, model_name, model_number=None):
+        train_df = self.get_train_data(arguments, model_number)
+        model, model_name, params = self.get_model_and_params(model_name, model_number)
+        if arguments.learn_params:
+            params = self.hyper_parameter_learner.async_grid_search(train_df.copy(), model, model_name)
+        model.set_params(**params)
+        self.classifier_trainer.train_model(train_df, model)
+
+    def get_model_and_params(self, model_name, model_number):
+        model, params, estimator_name = self.get_extra_sensory_model(model_name)
+        model_name = f"{model_name}_{estimator_name}"
+        model_name = model_name if model_number is None else f'{model_name}_{model_number}'
+        self.logger.info(f"Training {model_name}_{estimator_name}")
+        self.classifier_trainer.model_name = model_name
+        return model, model_name, params
+
+    def get_train_data(self, arguments, model_number):
         train_fold, test_fold = self.get_folds_files_names(model_number)
         self.logger.info(f"Reading train {train_fold}")
         train_df = get_dataframe(train_fold)
@@ -83,13 +98,7 @@ class ExtraSensoryManager:
             self.logger.info(f"Training on all data set. Reading test {test_fold}")
             test_df = get_dataframe(test_fold)
             train_df = pd.concat([train_df, test_df])
-        model, params = self.get_extra_sensory_model(model_name)
-        model_name = model_name if model_number is None else f'{model_name}_{model_number}'
-        if arguments.learn_params:
-            params = self.hyper_parameter_learner.async_grid_search(train_df.copy(), model, model_name)
-        model.set_params(**params)
-        self.classifier_trainer.model_name = model_name
-        self.classifier_trainer.train_model(train_df, model)
+        return train_df
 
     def get_extra_sensory_model(self, name):
         params = self.params[name].copy()
@@ -106,7 +115,7 @@ class ExtraSensoryManager:
         #     model = late_fusion_learning.LateFusionLearning(estimator)
         # elif name in 'single_sensor':
         #     model = single_sensor.SingleSensor(estimator)
-        return model, params
+        return model, params, estimator_name
 
     @staticmethod
     def get_sklearn_model(name):
@@ -125,10 +134,14 @@ class ExtraSensoryManager:
     def eval_model_per_fold(self):
         for name in self.models_types:
             model_accumulating_state = self.get_states_arrays(name)
+            estimator_name = self.params[name]['model_params']['estimator']
+            model_name = f"{name}_{estimator_name}"
             for model_number in range(self.fold_number):
-                self.evaluator.model_name = f"{name}_{model_number}"
-                model_accumulating_state += self.eval_model(model_number)
-            self.create_results(model_accumulating_state, name)
+                self.evaluator.model_name = f"{model_name}_{model_number}"
+                last_state = self.eval_model(model_number)
+                self.create_results(last_state, f"{model_name}_{model_number}")
+                model_accumulating_state += last_state
+            self.create_results(model_accumulating_state, model_name)
 
     def eval_model(self, model_number=None):
         train_fold, test_fold = self.get_folds_files_names(model_number)
@@ -151,14 +164,27 @@ class ExtraSensoryManager:
         return model_states
 
     def create_results(self, model_accumulating_state, model_name):
+        macro_df = self.create_macro_results(model_accumulating_state, model_name)
+        micro_df = self.create_micro_results(model_accumulating_state, model_name)
+        results = pd.concat([macro_df, micro_df])
+        results = results.set_index('Test type')
+        results_path = os.path.join(self.directories_dict['results'], f"state_results_{model_name}.csv")
+        results.to_csv(results_path)
+
+    def create_micro_results(self, model_accumulating_state, model_name):
+        scores_array = model_accumulating_state.sum(axis=1)
+        TP, TN, FP, FN = scores_array[0], scores_array[1], scores_array[2], scores_array[3]
+        scores_array = self.get_evaluations_metric_scores(TP, TN, FP, FN)
+        return self.create_result_dict(scores_array, model_name, 'micro')
+
+    def create_macro_results(self, model_accumulating_state, model_name):
         scores_array = np.zeros((NUM_OF_LABELS,), dtype='int')
         for labels_states in range(NUM_OF_LABELS):
             labels_states = model_accumulating_state[:, labels_states]
             TP, TN, FP, FN = labels_states[0], labels_states[1], labels_states[2], labels_states[3]
             scores_array = scores_array + self.get_evaluations_metric_scores(TP, TN, FP, FN)
-
         scores_array = scores_array / NUM_OF_LABELS
-        self.save_results(scores_array, model_name)
+        return self.create_result_dict(scores_array, model_name, 'macro')
 
     @staticmethod
     def get_evaluations_metric_scores(TP, TN, FP, FN):
@@ -190,18 +216,21 @@ class ExtraSensoryManager:
 
         return TPR, TNR, accuracy, precision, BA, F1
 
-    def save_results(self, scores_array, model_name):
+    def create_result_dict(self, scores_array, model_name, test_type):
         results_dict = {
-            "classifier": [model_name],
-            "accuracy": [scores_array[0]],
-            "sensitivity": [scores_array[1]],
-            "specifisity": [scores_array[2]],
-            "BA": [scores_array[3]],
-            "precision": [scores_array[4]],
+            "Test type": test_type,
+            "Classifier": [model_name],
+            "Accuracy": [scores_array[2]],
+            "Sensitivity": [scores_array[0]],
+            "Specifisity": [scores_array[1]],
+            "BA": [scores_array[4]],
+            "Precision": [scores_array[3]],
             "F1": [scores_array[5]]
         }
+        # return results_dict
         results = pd.DataFrame.from_dict(results_dict)
-        results_path = os.path.join(self.directories_dict['results'], f"state_results_{model_name}.csv")
-        results.to_csv(results_path)
+        return results
+        # results_path = os.path.join(self.directories_dict['results'], f"state_results_{model_name}_{test_type}.csv")
+        # results.to_csv(results_path)
 
     # endregion
