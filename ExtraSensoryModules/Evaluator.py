@@ -23,7 +23,7 @@ class Evaluator:
         X, y = get_X_y(test_df, pipe, is_fitted=True)
         test_class_weights = np.zeros((self.number_of_labels,), dtype='int')
         test_class_weights += self.get_test_weights(y)
-        return self.get_model_state(X, y, model)
+        return self.get_model_state(X, y, model), test_class_weights
 
     def load_model(self):
         attributes = self.model_name.split('_')[:-1]

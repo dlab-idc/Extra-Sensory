@@ -71,7 +71,7 @@ class ExtraSensoryManager:
         else:
             train_file_name = self.format_dict['fold_file'].format("train", self.feature_selection_percent, fold_number)
             test_file_name = self.format_dict['fold_file'].format("test", self.feature_selection_percent, fold_number)
-            fold_subdir = self.directories_dict['fold'].format(self.feature_selection_percent)
+            fold_subdir = os.path.join(self.directories_dict['fold'], str(self.feature_selection_percent))
             train_fold = os.path.join(fold_subdir, train_file_name)
             test_fold = os.path.join(fold_subdir, test_file_name)
         return train_fold, test_fold
@@ -161,31 +161,37 @@ class ExtraSensoryManager:
     def eval_model_per_fold(self):
         for model_name in self.models_types:
             model_accumulating_state = self.get_states_arrays(model_name)
+            test_class_weights = np.zeros(NUM_OF_LABELS)
             estimator_name = self.params[model_name]['model_params']['estimator']
             for model_number in range(self.fold_number):
                 self.evaluator.model_name = self.get_model_name(model_name, estimator_name, model_number)
-                last_state = self.eval_model(model_number)
-                self.create_results(last_state, self.evaluator.model_name)
+                last_state, last_class_weights = self.eval_model(model_number)
                 model_accumulating_state += last_state
-            self.create_results(model_accumulating_state, self.evaluator.model_name[:-2])
+                test_class_weights += last_class_weights
+                test_class_weights = (last_class_weights / last_class_weights.sum())
+                self.create_results(last_state, self.evaluator.model_name, test_class_weights)
+            test_class_weights = (test_class_weights / test_class_weights.sum())
+            self.create_results(model_accumulating_state, self.evaluator.model_name[:-2], test_class_weights,
+                                is_fold=False)
 
     def eval_model(self, model_number=None):
         train_fold, test_fold = self.get_folds_files_path(model_number)
         self.logger.info(f"Reading test {test_fold}")
         test_df = get_dataframe(test_fold)
-        state_matrix = self.evaluator.eval(test_df)
-        return state_matrix
+        state_matrix, test_class_weights = self.evaluator.eval(test_df)
+        return state_matrix, test_class_weights
 
-    def create_results(self, model_accumulating_state, model_name):
+    def create_results(self, model_accumulating_state, model_name, test_class_weights, is_fold=True):
         macro_df = self.create_macro_results(model_accumulating_state, model_name)
         micro_df = self.create_micro_results(model_accumulating_state, model_name)
-        results = pd.concat([macro_df, micro_df])
+        weighted_df = self.create_wheighted_results(model_accumulating_state, model_name, test_class_weights)
+        results = pd.concat([macro_df, micro_df, weighted_df])
         results = results.set_index('Test type')
-        results_path = self.get_model_subdir(model_name)
+        results_path = self.get_model_subdir(model_name, is_fold=is_fold)
         results.to_csv(results_path)
 
-    def get_model_subdir(self, model_name):
-        attributes = model_name.split('_')[:-1]
+    def get_model_subdir(self, model_name, is_fold=True):
+        attributes = model_name.split('_')[:-1] if is_fold else model_name.split('_')
         file_name = f"state_results_{self.format_dict['model_file'].format(model_name)}.csv"
         attributes.append(file_name)
         path = f"{os.path.sep}".join(attributes)
@@ -208,6 +214,15 @@ class ExtraSensoryManager:
             scores_array = scores_array + self.get_evaluations_metric_scores(TP, TN, FP, FN)
         scores_array = scores_array / NUM_OF_LABELS
         return self.create_result_dict(scores_array, model_name, 'macro')
+
+    def create_wheighted_results(self, model_accumulating_state, model_name, test_class_weights):
+        scores_array = []
+        for labels_states in range(NUM_OF_LABELS):
+            labels_states = model_accumulating_state[:, labels_states]
+            TP, TN, FP, FN = labels_states[0], labels_states[1], labels_states[2], labels_states[3]
+            scores_array.append(self.get_evaluations_metric_scores(TP, TN, FP, FN))
+        scores_array = np.dot(test_class_weights, np.array(scores_array))
+        return self.create_result_dict(scores_array, model_name, 'weighted')
 
     @staticmethod
     def get_states_arrays(name):
@@ -269,4 +284,3 @@ class ExtraSensoryManager:
         return results
 
     # endregion
-
