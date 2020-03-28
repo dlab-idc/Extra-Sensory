@@ -26,20 +26,20 @@ class Evaluator:
         return self.get_model_state(X, y, model)
 
     def load_model(self):
-        model_file_name = self.format_dict['model_file'].format(self.model_name)
-        model_file_path = os.path.join(self.directories_dict['models'], model_file_name)
+        attributes = self.model_name.split('_')[:-1]
+        file_name = self.format_dict['model_file'].format(self.model_name)
+        attributes.append(file_name)
+        path = f"{os.path.sep}".join(attributes)
+        model_file_path = os.path.join(self.directories_dict['models'], path)
         model = pickle.load(open(model_file_path, "rb"))
         return model
 
     def get_test_weights(self, i_y):
         y = np.array(i_y)
         class_counts = np.unique(y, return_counts=True)[1]
-
         print(f'class_counts={class_counts}')
-
         if len(class_counts) != self.number_of_labels:
             raise Exception(f"class_counts length is diffrent from {self.number_of_labels}")
-
         return class_counts
 
     def get_model_state(self, X, y, model):

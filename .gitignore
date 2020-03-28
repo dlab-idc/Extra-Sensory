@@ -4,3 +4,4 @@ data
 log
 test*
 results
+*.ipynb_checkpoints

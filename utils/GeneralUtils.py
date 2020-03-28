@@ -5,7 +5,6 @@ import os
 
 from datetime import datetime
 from configparser import ConfigParser
-from json import JSONDecodeError
 
 
 def setup_custom_logger(log_file, name=None):

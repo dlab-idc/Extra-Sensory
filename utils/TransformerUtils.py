@@ -1,11 +1,8 @@
-from tempfile import mkdtemp
-
 import pandas as pd
 import numpy as np
 
 from enum import Enum
-
-
+from tempfile import mkdtemp
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.base import TransformerMixin, BaseEstimator
@@ -21,25 +18,29 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(self, transformers):
         self.transformers = transformers
+        self.categorical_columns_ = None
+        self.numeric_columns_ = None
+        self.cat_cols_indices_ = None
+        self.num_cols_indices_ = None
         self.is_fitted = False
 
     def fit(self, X: pd.DataFrame, y=None):
-        self.categorial_columns_, self.numeric_columns_ = split_cat_num_cols(X)
+        self.categorical_columns_, self.numeric_columns_ = split_cat_num_cols(X)
 
-        X_category = X[self.categorial_columns_]
+        X_category = X[self.categorical_columns_]
         X_numeric = X[self.numeric_columns_]
 
         for transformer_tuple in self.transformers:
-            _, transformer, column_dtype = transformer_tuple
+            _, transformer, column_dtypes = transformer_tuple
 
-            self.validate_input(column_dtype, transformer)
+            self.validate_input(column_dtypes, transformer)
 
-            if column_dtype == ColumnTypeEnum.CATEGORY:
+            if column_dtypes == ColumnTypeEnum.CATEGORY:
                 X_category = transformer.fit_transform(X_category, y)
-            elif column_dtype == ColumnTypeEnum.NUMERIC:
+            elif column_dtypes == ColumnTypeEnum.NUMERIC:
                 X_numeric = transformer.fit_transform(X_numeric, y)
             else:
-                raise ValueError(f"{column_dtype} is not a supported column data type")
+                raise ValueError(f"{column_dtypes} is not a supported column data type")
 
         self.set_transformed_data_indices(X_category, X_numeric)
         self.is_fitted = True
@@ -56,12 +57,13 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
         self.cat_cols_indices_ = np.arange(0, X_category.shape[1])
         self.num_cols_indices_ = np.arange(X_category.shape[1], X_numeric.shape[1])
 
-    def validate_input(self, column_dtype, transformer):
+    @staticmethod
+    def validate_input(column_dtypes, transformer):
         """
         validate the transformer is an sklearn transformer and the column d-type is ColumnTypeEnum
         """
         assert isinstance(transformer, TransformerMixin), f"{transformer} is not an instance of TransformerMixin"
-        assert isinstance(column_dtype, ColumnTypeEnum), f"{column_dtype} is not an instance of ColumnTypeEnum"
+        assert isinstance(column_dtypes, ColumnTypeEnum), f"{column_dtypes} is not an instance of ColumnTypeEnum"
 
     def transform(self, X: pd.DataFrame):
         """
@@ -70,7 +72,7 @@ class MixedColumnTransformer(BaseEstimator, TransformerMixin):
         if not self.is_fitted:
             raise Exception("you must call fit first!")
 
-        X_category = X[self.categorial_columns_]
+        X_category = X[self.categorical_columns_]
         X_numeric = X[self.numeric_columns_]
 
         for transformer_tuple in self.transformers:
