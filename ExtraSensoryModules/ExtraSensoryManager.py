@@ -12,7 +12,6 @@ from ExtraSensoryModules.Evaluator import Evaluator
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.utils.class_weight import compute_class_weight
 
 NUM_OF_LABELS = 6
 CONFUSION_MATRIX_LABELS = 4
@@ -38,7 +37,7 @@ class ExtraSensoryManager:
         self.fold_number = self.config['folds']['fold_number']
         self.is_fold = self.config['folds']['is_fold']
         self.feature_selection_percent = self.config['preprocessing']['feature_selection_percent']
-        self.hyper_parameter_learner = HyperParameterLearner(self.config['folds']['grid_search_method'])
+        self.hyper_parameter_learner = HyperParameterLearner(self.config['folds']['cross_validation_method'])
         self.preprocess = PreProcess()
         self.classifier_trainer = ClassifierTrainer()
         self.evaluator = Evaluator(NUM_OF_LABELS)
@@ -87,7 +86,7 @@ class ExtraSensoryManager:
         :param model_name:
         :return:
         """
-        grid_search_method = self.config['folds']['grid_search_method']
+        grid_search_method = self.config['folds']['cross_validation_method']
         model_name = f"{model_name}_{estimator_name}_{self.feature_selection_percent}_{grid_search_method}"
         model_name = model_name if model_number is None else f'{model_name}_{model_number}'
         return model_name
@@ -174,8 +173,8 @@ class ExtraSensoryManager:
                 last_state, last_class_weights = self.eval_model(model_number)
                 model_accumulating_state += last_state
                 test_class_weights += last_class_weights
-                test_class_weights = (last_class_weights / last_class_weights.sum())
-                self.create_results(last_state, self.evaluator.model_name, test_class_weights)
+                last_class_weights = (last_class_weights / last_class_weights.sum())
+                self.create_results(last_state, self.evaluator.model_name, last_class_weights)
             test_class_weights = (test_class_weights / test_class_weights.sum())
             self.create_results(model_accumulating_state, self.evaluator.model_name[:-2], test_class_weights,
                                 is_fold=False)

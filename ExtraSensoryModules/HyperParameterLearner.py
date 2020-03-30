@@ -14,18 +14,17 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 GROUP_K_FOLD = 'GroupKFold'
 STRATIFIED_K_FOLD = 'StratifiedKFold'
-IMBALANCED = 'Imbalanced'
 
 
 class HyperParameterLearner:
-    def __init__(self, grid_search_groups_method):
+    def __init__(self, cross_validation_method):
         self.config = ConfigManager.get_config('hyper_parameters_learner')
         self.directories = ConfigManager.get_config('General')['directories']
         self.logger = logging.getLogger('classifier')
         self.param_grid = None
         self.cross_validation_folds_number = None
         self.scoring_function = None
-        self.grid_search_groups_method = grid_search_groups_method
+        self.grid_search_groups_method = cross_validation_method
         self.is_all_set = self.config['groups']['is_all_data']
 
     def async_grid_search(self, train, model: ExtraSensoryAbstractModel, model_name):
