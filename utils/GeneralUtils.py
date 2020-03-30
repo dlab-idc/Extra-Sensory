@@ -5,7 +5,6 @@ import os
 
 from datetime import datetime
 from configparser import ConfigParser
-from json import JSONDecodeError
 
 
 def setup_custom_logger(log_file, name=None):
@@ -56,8 +55,9 @@ class ConfigManager:
                 for key, val in config.items(section):
                     try:
                         config_dict[section][key] = json.loads(val)
-                    except JSONDecodeError:
-                        print(section, val, file_name)
+                    except Exception as e:
+                        print(f"Problem with {section} with {val}")
+                        raise e
             return config_dict
 
     instance = None
@@ -70,9 +70,6 @@ class ConfigManager:
         if not ConfigManager.instance:
             ConfigManager()
         return ConfigManager.instance.config[name]
-
-    # def __getitem__(self, config, item):
-    #     return ConfigManager.instance[config]
 
 
 def convert_timestamp_to_string_date(timestamp):

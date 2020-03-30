@@ -1,5 +1,3 @@
-import pandas as pd
-import numpy as np
 import pickle
 
 from typing import List
@@ -7,14 +5,12 @@ from ExtraSensoryModels.Interfaces.ExtraSensoryAbstractModel import ExtraSensory
 from utils.TransformerUtils import *
 from logging import getLogger
 from utils.GeneralUtils import *
-from datetime import datetime
 
 Model = List[ExtraSensoryAbstractModel]
 
 
 class ClassifierTrainer:
     def __init__(self):
-        #self.config = ConfigManager.get_config('ClassifierTrainer')
         general_config = ConfigManager.get_config('General')
         self.directories_dict = general_config['directories']
         self.format_dict = general_config['formats']
@@ -28,12 +24,18 @@ class ClassifierTrainer:
         model.fit(X, y)
         self.save_model(model)
 
-    def load_model(self):
-        pass
-
     def save_model(self, model):
-        file_name = self.format_dict['model_file'].format(self.model_name, datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))
-        self.logger.info(f"Saving {self.model_name} in {file_name}")
-        file_path = os.path.join(self.directories_dict['models'], file_name)
+        file_path = self.get_file_path()
+        self.logger.info(f"Saving {self.model_name} in {file_path}")
         with open(file_path, 'wb') as outfile:
             pickle.dump(model, outfile)
+
+    def get_file_path(self):
+        attributes = self.model_name.split('_')[:-1]
+        file_name = self.format_dict['model_file'].format(self.model_name)
+        attributes.append(file_name)
+        path = f"{os.path.sep}".join(attributes)
+        file_path = os.path.join(self.directories_dict['models'], path)
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        return file_path
