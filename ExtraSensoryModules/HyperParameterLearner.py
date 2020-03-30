@@ -12,6 +12,10 @@ from ExtraSensoryModels.Interfaces.ExtraSensoryAbstractModel import ExtraSensory
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+GROUP_K_FOLD = 'GroupKFold'
+STRATIFIED_K_FOLD = 'StratifiedKFold'
+IMBALANCED = 'Imbalanced'
+
 
 class HyperParameterLearner:
     def __init__(self, grid_search_groups_method):
@@ -33,7 +37,8 @@ class HyperParameterLearner:
         :return: dictionary, train model's best params
         """
         X, y = get_X_y(train, model.get_pipe())
-        groups = self.get_uuid_groups(train)
+        is_GroupKFold = self.grid_search_groups_method in GROUP_K_FOLD
+        groups = self.get_uuid_groups(train) if is_GroupKFold else None
         cv = self.get_grid_search_cv()
         best_estimator = GridSearchCV(estimator=model,
                                       param_grid=self.param_grid,
@@ -43,7 +48,10 @@ class HyperParameterLearner:
                                       n_jobs=-1,
                                       verbose=10
                                       )
-        best_estimator.fit(X, y, groups=groups)
+        if is_GroupKFold:
+            best_estimator.fit(X, y, groups=groups)
+        else:
+            best_estimator.fit(X, y)
         self.save_results(best_estimator, model_name)
         return best_estimator.best_params_
 
@@ -58,9 +66,9 @@ class HyperParameterLearner:
 
     def get_grid_search_cv(self):
         cv = None
-        if self.grid_search_groups_method in 'GroupKFold':
+        if self.grid_search_groups_method in GROUP_K_FOLD:
             cv = GroupKFold(n_splits=self.cross_validation_folds_number)
-        elif self.grid_search_groups_method in 'StratifiedKFold':
+        elif self.grid_search_groups_method in STRATIFIED_K_FOLD:
             cv = StratifiedKFold(n_splits=3, shuffle=True)
         return cv
 

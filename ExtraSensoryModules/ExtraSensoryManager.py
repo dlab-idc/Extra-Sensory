@@ -1,16 +1,18 @@
 import pandas as pd
 import numpy as np
+from logging import getLogger
 
 from utils.GeneralUtils import *
+from utils.ReadingTheDataUtils import get_dataframe
 from ExtraSensoryModules.PreProcessing import PreProcess
 from ExtraSensoryModules.HyperParameterLearner import HyperParameterLearner
 from ExtraSensoryModules.ClassifierTrainer import ClassifierTrainer
 from ExtraSensoryModels.Models import early_fusion  # , late_fusion_averaging, late_fusion_learning, single_sensor
+from ExtraSensoryModules.Evaluator import Evaluator
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from logging import getLogger
-from utils.ReadingTheDataUtils import get_dataframe
-from ExtraSensoryModules.Evaluator import Evaluator
+from sklearn.utils.class_weight import compute_class_weight
 
 NUM_OF_LABELS = 6
 CONFUSION_MATRIX_LABELS = 4
@@ -112,10 +114,17 @@ class ExtraSensoryManager:
         self.classifier_trainer.train_model(train_df, model)
 
     def get_model_and_params(self, model_name, model_number):
-        model, params, estimator_name = self.get_extra_sensory_model(model_name)
+        params = self.get_model_params(model_name)
+        estimator_name = params['model_params'].pop('estimator')
+        model = self.get_extra_sensory_model(model_name, estimator_name)
         self.logger.info(f"Training {model_name}_{estimator_name}")
         self.classifier_trainer.model_name = self.get_model_name(model_name, estimator_name, model_number)
         return model, self.classifier_trainer.model_name, params
+
+    def get_model_params(self, model_name):
+        params = self.params[model_name].copy()
+        params['model_params'] = params['model_params'].copy()
+        return params
 
     def get_train_data(self, arguments, model_number):
         train_fold, test_fold = self.get_folds_files_path(model_number)
@@ -127,10 +136,7 @@ class ExtraSensoryManager:
             train_df = pd.concat([train_df, test_df])
         return train_df
 
-    def get_extra_sensory_model(self, name):
-        params = self.params[name].copy()
-        params['model_params'] = params['model_params'].copy()
-        estimator_name = params['model_params'].pop('estimator')
+    def get_extra_sensory_model(self, name, estimator_name):
         estimator = self.get_sklearn_model(estimator_name)
         self.hyper_parameter_learner.set_estimator(estimator_name)
         model = None
@@ -142,7 +148,7 @@ class ExtraSensoryManager:
         #     model = late_fusion_learning.LateFusionLearning(estimator)
         # elif name in 'single_sensor':
         #     model = single_sensor.SingleSensor(estimator)
-        return model, params, estimator_name
+        return model
 
     @staticmethod
     def get_sklearn_model(name):
@@ -228,12 +234,11 @@ class ExtraSensoryManager:
     def get_states_arrays(name):
         states_shape = (CONFUSION_MATRIX_LABELS, NUM_OF_LABELS)
         model_states = np.zeros(states_shape, dtype='int')
-        if name in 'single sensor':
+        # if name in 'single sensor':
             # feature_names = get_feature_names(i_standard_X_test,
             #                                   ['label'])  # In this case we using the data with our label!
             # sensor_names = get_sensor_names(feature_names)
             # single_sensors_states_dict = dict()
-            pass
         # for sensor_name in sensor_names:
         #     single_sensors_states_dict.setdefault(sensor_name, np.zeros(states_shape))
         return model_states
